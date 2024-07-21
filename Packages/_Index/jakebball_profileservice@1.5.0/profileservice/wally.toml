@@ -1,0 +1,7 @@
+[package]
+name = "jakebball/profileservice"
+version = "1.5.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+
+[dependencies]

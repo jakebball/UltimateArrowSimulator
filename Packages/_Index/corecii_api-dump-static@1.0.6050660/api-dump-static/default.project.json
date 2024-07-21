@@ -1,0 +1,12 @@
+{
+  "name": "api-dump-static",
+  "tree": {
+    "$path": "src/lib",
+    "packageVersion": {
+      "$path": "package-version.txt"
+    },
+    "robloxVersion": {
+      "$path": "roblox-version.txt"
+    }
+  }
+}

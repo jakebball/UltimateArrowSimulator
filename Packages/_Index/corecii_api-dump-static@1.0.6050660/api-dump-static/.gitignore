@@ -1,0 +1,16 @@
+.vscode/
+.foreman-install/
+
+roblox.toml
+
+/*.rbxlx
+/*.rbxm
+
+/build/
+
+/node_modules
+
+api-dump-split.remodel.json
+previous-package-version.txt
+no-changes
+globalTypes.d.lua
