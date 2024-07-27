@@ -1,11 +1,11 @@
 return {
     bows = {
         ["theclassic"] = 250,
-        ["test"] = 20,
     },
     equippedItems = {
-        playerBowSlot = "theclassic",
+        playerBowSlot = "theclassic"
     },
+    unlockedRanges = {"olreliable"},
     simulationTokens  = {},
     simulationDust = 0
 }

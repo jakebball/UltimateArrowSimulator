@@ -1,11 +1,11 @@
 
-local BowSystem = {}
+local Bows = {}
 
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 
-function BowSystem.ToggleBowEquip(player, bowId)
+function Bows.ToggleBowEquip(player, bowId)
 
     local bows = HttpService:JSONDecode(player:GetAttribute("bows"))
 
@@ -27,7 +27,7 @@ function BowSystem.ToggleBowEquip(player, bowId)
     player:SetAttribute("equippedItems", HttpService:JSONEncode(equippedItems))
 end
 
-function BowSystem.DestroyBows(player, destroyData)
+function Bows.DestroyBows(player, destroyData)
 
     local bows = HttpService:JSONDecode(player:GetAttribute("bows"))
     local equippedItems = HttpService:JSONDecode(player:GetAttribute("equippedItems"))
@@ -60,9 +60,9 @@ function BowSystem.DestroyBows(player, destroyData)
     player:SetAttribute("bows", HttpService:JSONEncode(bows))
 end
 
-function BowSystem.Start()
-    BowSystem.Systems.NetworkSystem.GetEvent("ToggleBowEquip").OnServerEvent:Connect(BowSystem.ToggleBowEquip)
-    BowSystem.Systems.NetworkSystem.GetEvent("DestroyBows").OnServerEvent:Connect(BowSystem.DestroyBows)
+function Bows.Start()
+    Bows.Systems.Network.GetEvent("ToggleBowEquip").OnServerEvent:Connect(Bows.ToggleBowEquip)
+    Bows.Systems.Network.GetEvent("DestroyBows").OnServerEvent:Connect(Bows.DestroyBows)
 end
 
-return BowSystem    
+return Bows    

@@ -6,7 +6,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local ModelUtils = require(ReplicatedStorage.Shared.Utils.ModelUtils)
 
-local BowSystem = {}
+local Bows = {}
 
 local Players = game.Players
 
@@ -17,7 +17,7 @@ local fireDebounce = false
 
 local mouse = Players.LocalPlayer:GetMouse()
 
-function BowSystem.UpdateBows(player)
+function Bows.UpdateBows(player)
 
     if player.Character == nil then
         return
@@ -105,7 +105,7 @@ function BowSystem.UpdateBows(player)
     end
 end
 
-function BowSystem.FireBow(player)
+function Bows.FireBow(player)
     for _,bowId in HttpService:JSONDecode(player:GetAttribute("equippedItems")) do
         local bowModel = workspace.Bows[player.UserId]:FindFirstChild(bowId)
 
@@ -150,7 +150,7 @@ function BowSystem.FireBow(player)
     end
 end
 
-function BowSystem.Start()
+function Bows.Start()
     RunService.Heartbeat:Connect(function()
         for _,player in Players:GetPlayers() do
 
@@ -164,7 +164,7 @@ function BowSystem.Start()
                 bowFolder.Parent = workspace.Bows
             end
             
-            BowSystem.UpdateBows(player)
+            Bows.UpdateBows(player)
         end
     end)
 
@@ -173,7 +173,7 @@ function BowSystem.Start()
             if input.UserInputType == Enum.UserInputType.MouseButton1 and fireDebounce == false then
                 fireDebounce = true
 
-                BowSystem.FireBow(Players.LocalPlayer)
+                Bows.FireBow(Players.LocalPlayer)
 
                 task.wait(0.25)
 
@@ -183,4 +183,4 @@ function BowSystem.Start()
     end)
 end
 
-return BowSystem
+return Bows

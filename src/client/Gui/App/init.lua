@@ -9,7 +9,6 @@ local React = require(Packages.React)
 
 local MusicPlayer = require(script.MusicPlayer) 
 local HUD = require(script.HUD)
-local ShootingRange = require(script.ShootingRange)
 local Backpack = require(script.Backpack)
 
 local CameraUtils = require(ReplicatedStorage.Shared.Utils.CameraUtils)
@@ -23,14 +22,13 @@ local menuStates = {
         "musicPlayer",
         "hud"
     },
-    ["shootingRange"] = {
-        "musicPlayer",
-        "shootingRange",
-    },
     ["backpack"] = {
         "musicPlayer",
         "hud",
         "backpack"
+    },
+    ["shootingRange"] = {
+        "musicPlayer"
     }
 }
 
@@ -96,10 +94,6 @@ local function App(props)
             playerdata = playerdata,
             setMenuState = setMenuState,
             menuState = menuState
-        }),
-
-        ShootingRange = e(ShootingRange, {
-            visible = table.find(menuStates[menuState], "shootingRange")
         }),
 
         Backpack = e(Backpack, {

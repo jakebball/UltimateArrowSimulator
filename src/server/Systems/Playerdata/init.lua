@@ -1,5 +1,5 @@
 
-local PlayerdataSystem = {}
+local Playerdata = {}
 
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
@@ -161,7 +161,7 @@ local function ProcessReceipt(receipt_info)
     end
 end
 
-function PlayerdataSystem.Start()
+function Playerdata.Start()
     for _, player in Players:GetPlayers() do
         task.spawn(PlayerAdded, player)
     end
@@ -178,7 +178,7 @@ function PlayerdataSystem.Start()
     end)
 end
 
-function PlayerdataSystem.EditProfileData(player, key, value)
+function Playerdata.EditProfileData(player, key, value)
     local profile = Profiles[player] 
 
     if profile then
@@ -190,4 +190,4 @@ ReplicatedStorage.GetSaveTemplate.OnServerInvoke = function()
     return SaveFileTemplate
 end
 
-return PlayerdataSystem
+return Playerdata

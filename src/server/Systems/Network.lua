@@ -1,29 +1,27 @@
 local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local NetworkSystem = {}
-
+local Network = {}
 local networkIndex = {}
 
-local Network = game.ReplicatedStorage.Network
-
-function NetworkSystem.Start()
+function Network.Start()
     task.spawn(function()
         while true do
             for eventName, uniqueId in networkIndex do 
                 local newId = HttpService:GenerateGUID(false)
-
+             
                 networkIndex[eventName] = newId
-                Network[uniqueId].Name = newId
+                ReplicatedStorage.Network[uniqueId].Name = newId
             end
 
-            Network.NetworkSync:FireAllClients(networkIndex)
+            ReplicatedStorage.Network.NetworkSync:FireAllClients(networkIndex)
 
             task.wait(1)
         end
     end)
 end
 
-function NetworkSystem.GetEvent(eventName)
+function Network.GetEvent(eventName)
     assert(typeof(eventName) == "string", "Event must be a string")
 
     if networkIndex[eventName] == nil then
@@ -31,7 +29,7 @@ function NetworkSystem.GetEvent(eventName)
 
         local event = Instance.new("RemoteEvent")
         event.Name = eventId
-        event.Parent = Network
+        event.Parent = ReplicatedStorage.Network
 
         networkIndex[eventName] = eventId
 
@@ -41,7 +39,7 @@ function NetworkSystem.GetEvent(eventName)
     end
 end
 
-function NetworkSystem.GetFunction(functionName)
+function Network.GetFunction(functionName)
     assert(typeof(functionName) == "string", "Event must be a string")
     
     if networkIndex[functionName] == nil then
@@ -49,7 +47,7 @@ function NetworkSystem.GetFunction(functionName)
 
         local remoteFunction = Instance.new("RemoteFunction")
         remoteFunction.Name = functionId
-        remoteFunction.Parent = Network
+        remoteFunction.Parent = ReplicatedStorage.Network
 
         networkIndex[functionName] = functionId
     else
@@ -58,4 +56,4 @@ function NetworkSystem.GetFunction(functionName)
 end
 
 
-return NetworkSystem
+return Network

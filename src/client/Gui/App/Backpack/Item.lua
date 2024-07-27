@@ -38,12 +38,6 @@ return function(props)
         config = ConfigStyles.defaultButton
     })
 
-    local checkmark = ReactSpring.useSpring({
-        size = if props.equipped then UDim2.new(0.384, 0, 0.359, 0) else UDim2.new(0, 0, 0, 0),
-        rotation = if props.equipped then 360 else 0,
-        config = ConfigStyles.checkmark
-    })
-
     return e(ItemTemplate, {
         UIStroke = {
             Color = RarityColors[rarity].strokeColor,
@@ -78,11 +72,6 @@ return function(props)
 
         Count = {
             Text = "x" .. props.amount
-        },
-
-        Checkmark = {
-            Size = checkmark.size,
-            Rotation = checkmark.rotation
         }
     })
 end
