@@ -16,6 +16,7 @@ local CloseButton = require(game.StarterPlayer.StarterPlayerScripts.Client.Gui.C
 local AnimatedButton = require(game.StarterPlayer.StarterPlayerScripts.Client.Gui.Components.AnimatedButton)
 local ModeButton = require(script.ModeButton)
 local Item = require(script.Item)
+local ItemSlot = require(script.ItemSlot)
 
 local ConfigStyles = require(ReplicatedStorage.Shared.ConfigStyles)
 local ButtonStyles = require(ReplicatedStorage.Shared.ButtonStyles)
@@ -28,18 +29,29 @@ local SORTING_MODES = {
 local e = React.createElement
 
 local BOW_STACK_SIZE = 99
+local MODE_BUTTON_SIZE = UDim2.new(1, 0, 0.5, 0)
 
 return function(props)
+	local backpackMode, setBackpackMode = React.useState("bows")
+	local destroyActive, setDestroyActive = React.useState(false)
+	local destroyList, setDestroyList = React.useState({})
+	local sortMode, setSortMode = React.useState(1)
+	local runTextureAnim, setRunTextureAnim = React.useState(false)
+
+	local keyIndexToAmount = {}
+
 	local backpackStyles = ReactSpring.useSpring({
 		position = UDim2.new(if props.visible then 0.5 else -1.5, 0, 0.5, 0),
 		config = ConfigStyles.menuTransition,
 	})
 
-	local backpackMode, setBackpackMode = React.useState("bows")
-	local destroyActive, setDestroyActive = React.useState(false)
-	local destroyList, setDestroyList = React.useState({})
-	local sortMode, setSortMode = React.useState(1)
-	local keyIndexToAmount = {}
+	local textureStyles, textureApi = ReactSpring.useSpring(function()
+		return {
+			texture1Position = UDim2.new(0, 0, 0, 0),
+			texture2Position = UDim2.new(1, 0, 0, 0),
+			config = ConfigStyles.textureTransition,
+		}
+	end)
 
 	local listChildren = {}
 
@@ -147,6 +159,25 @@ return function(props)
 			end
 		end
 	end
+
+	React.useEffect(function()
+		if runTextureAnim then
+			textureApi
+				.start({
+					texture1Position = UDim2.new(0, 0, 1, 0),
+					texture2Position = UDim2.new(0, 0, 0, 0),
+				})
+				:andThen(function()
+					textureApi.start({
+						texture1Position = UDim2.new(0, 0, 0, 0),
+						texture2Position = UDim2.new(0, 0, -1, 0),
+						immediate = true,
+					})
+
+					setRunTextureAnim(false)
+				end)
+		end
+	end, { runTextureAnim })
 
 	return e(BackpackTemplate, {
 		Main = {
@@ -264,30 +295,43 @@ return function(props)
 		ModeButtons = {
 			[RoactCompat.Children] = {
 				UIListLayout = e("UIListLayout", {
-					Padding = UDim.new(0.02, 0),
-					FillDirection = Enum.FillDirection.Horizontal,
+					Padding = UDim.new(0.05, 0),
+					FillDirection = Enum.FillDirection.Vertical,
 					HorizontalAlignment = Enum.HorizontalAlignment.Center,
 					SortOrder = Enum.SortOrder.LayoutOrder,
 					VerticalAlignment = Enum.VerticalAlignment.Center,
 				}),
 
 				Bows = (destroyActive == false) and e(ModeButton, {
-					size = UDim2.new(0.269, 0, 0.9, 0),
+					size = MODE_BUTTON_SIZE,
 					style = if backpackMode == "bows" then "confirm" else "option1",
 					isSelected = backpackMode == "bows",
 					text = "Bows",
 					activated = function()
 						setBackpackMode("bows")
+						setRunTextureAnim(true)
 					end,
 				}),
 
 				Tokens = (destroyActive == false) and e(ModeButton, {
-					size = UDim2.new(0.269, 0, 0.9, 0),
+					size = MODE_BUTTON_SIZE,
 					style = if backpackMode == "tokens" then "confirm" else "option1",
 					isSelected = backpackMode == "tokens",
 					text = "Tokens",
 					activated = function()
 						setBackpackMode("tokens")
+						setRunTextureAnim(true)
+					end,
+				}),
+
+				Gear = (destroyActive == false) and e(ModeButton, {
+					size = MODE_BUTTON_SIZE,
+					style = if backpackMode == "gear" then "confirm" else "option1",
+					isSelected = backpackMode == "gear",
+					text = "Gear",
+					activated = function()
+						setBackpackMode("gear")
+						setRunTextureAnim(true)
 					end,
 				}),
 			},
@@ -303,6 +347,23 @@ return function(props)
 
 		SellingGrey = {
 			Visible = destroyActive,
+		},
+
+		SlotFrame = {
+			[RoactCompat.Children] = {
+				BowSlot = e(ItemSlot, {
+					slotType = "Bow",
+					itemId = props.playerdata.equippedItems.playerBowSlot,
+				}),
+			},
+		},
+
+		Texture1 = {
+			Position = textureStyles.texture1Position,
+		},
+
+		Texture2 = {
+			Position = textureStyles.texture2Position,
 		},
 	})
 end
