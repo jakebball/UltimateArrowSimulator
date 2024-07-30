@@ -105,17 +105,10 @@ return function(props)
 						layoutOrder = ItemUtils.getItemScore(bowId)
 					end
 
-					local equipped = (props.playerdata.equippedItems.playerBowSlot == bowId) and bowIndex[bowId] == 1
-
-					if equipped then
-						layoutOrder = -math.huge
-					end
-
 					return e(Item, {
 						itemType = "Bows",
 						bowId = bowId,
 						amount = amount,
-						equipped = equipped,
 						isBeingSold = table.find(destroyList, keyIndex) ~= nil,
 						layoutOrder = layoutOrder,
 
@@ -135,7 +128,7 @@ return function(props)
 									return prev
 								end)
 							else
-								NetworkUtils.firePromiseRemoteEvent(props.systems, "ToggleBowEquip", bowId)
+								NetworkUtils.FirePromiseRemoteEvent(props.systems, "ToggleBowEquip", bowId)
 							end
 						end,
 					})
@@ -237,7 +230,7 @@ return function(props)
 							return a.score > b.score
 						end)
 
-						NetworkUtils.firePromiseRemoteEvent(props.systems, "ToggleBowEquip", scores[1].id)
+						NetworkUtils.FirePromiseRemoteEvent(props.systems, "ToggleBowEquip", scores[1].id)
 					end,
 				}),
 
@@ -286,7 +279,7 @@ return function(props)
 
 						setDestroyList({})
 
-						NetworkUtils.firePromiseRemoteEvent(props.systems, "DestroyBows", data)
+						NetworkUtils.FirePromiseRemoteEvent(props.systems, "DestroyBows", data)
 					end,
 				}),
 			},
@@ -351,7 +344,7 @@ return function(props)
 
 		SlotFrame = {
 			[RoactCompat.Children] = {
-				BowSlot = e(ItemSlot, {
+				BowSlot1 = e(ItemSlot, {
 					slotType = "Bow",
 					itemId = props.playerdata.equippedItems.playerBowSlot,
 				}),

@@ -1,35 +1,43 @@
-
 local PlayerUtils = {}
 
 local Players = game.Players
 
-
 function PlayerUtils.GetPlayerFromHumanoidRootPart(part)
-    if Players:FindFirstChild(part.Parent.Name) then
-        return Players:GetPlayerFromCharacter(part.Parent)
-    end
+	if Players:FindFirstChild(part.Parent.Name) then
+		return Players:GetPlayerFromCharacter(part.Parent)
+	end
 end
 
 function PlayerUtils.getHumanoidFromPlayer(player)
-    if player.Character ~= nil and player.Character:FindFirstChild("Humanoid") ~= nil then
-        return player.Character.Humanoid
-    end
+	if player.Character ~= nil and player.Character:FindFirstChild("Humanoid") ~= nil then
+		return player.Character.Humanoid
+	end
 end
 
-function PlayerUtils.toggleOtherPlayersVisible(toggle)
-    if toggle then
-        for _,player in Players:GetPlayers() do
-            if player.Character then
-                player.Character.Parent = nil
-            end
-        end
-    else
-        for _,player in Players:GetPlayers() do
-            if player.Character then
-                player.Character.Parent = workspace
-            end
-        end
-    end
+function PlayerUtils.togglePlayersVisible(toggle, excludeTable)
+	excludeTable = excludeTable or {}
+
+	if toggle then
+		for _, player in Players:GetPlayers() do
+			if table.find(excludeTable, player) then
+				continue
+			end
+
+			if player.Character then
+				player.Character.Parent = workspace
+			end
+		end
+	else
+		for _, player in Players:GetPlayers() do
+			if table.find(excludeTable, player) then
+				continue
+			end
+
+			if player.Character then
+				player.Character.Parent = nil
+			end
+		end
+	end
 end
 
 return PlayerUtils

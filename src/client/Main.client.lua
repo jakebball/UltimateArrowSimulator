@@ -30,10 +30,12 @@ local function startSystems()
     end
 
     for systemName, system in systems do
+        system.Systems = systems
+        system.LocalPlayer = Players.LocalPlayer
         print("Starting Client System: " .. systemName)
 
         if system.Start then
-            system.Start(systems)
+            system.Start()
         end
     end
 

@@ -13,6 +13,7 @@ local ConfigStyles = require(ReplicatedStorage.Shared.ConfigStyles)
 local RangeInfo = require(ReplicatedStorage.Shared.RangeInfo)
 local PlayerUtils = require(ReplicatedStorage.Shared.Utils.PlayerUtils)
 local CameraUtils = require(ReplicatedStorage.Shared.Utils.CameraUtils)
+local NetworkUtils = require(ReplicatedStorage.Shared.Utils.NetworkUtils)
 
 local AnimatedButton = require(script.Parent.Parent.Components.AnimatedButton)
 
@@ -23,24 +24,13 @@ local e = React.createElement
 
 local sounds = ReplicatedStorage.Assets.Sounds
 
---[[
-				for _ = 1, 25 do
-					setHealthPositionOffset(
-						Vector2.new(Random.new():NextNumber(-0.01, 0.01), Random.new():NextNumber(-0.01, 0.01))
-					)
-					task.wait()
-				end
-
-				setHealthPositionOffset(Vector2.new(0, 0))
-
-                
-]]
-
 return function(props)
 	local range, setRange = React.useState()
 	local stage, setStage = React.useState("start")
 	local countdown, setCountdown = React.useState(3)
 	local healthPositionOffset, setHealthPositionOffset = React.useState(Vector2.new(0, 0))
+	local health, setHealth = React.useState(100)
+	local healthWhite, setHealthWhite = React.useState(100)
 
 	local rangeStyles = ReactSpring.useSpring({
 		position = UDim2.new(if props.visible then 0.5 else -1.5, 0, 0.5, 0),
@@ -55,6 +45,16 @@ return function(props)
 	local runningMenuStyles = ReactSpring.useSpring({
 		position = UDim2.new(if stage == "running" then 0.5 else -1.5, 0, 0.5, 0),
 		config = ConfigStyles.menuTransition,
+	})
+
+	local healthStyles = ReactSpring.useSpring({
+		size = UDim2.new(health / 100, 0, 1, 0),
+		config = ConfigStyles.healthBar,
+	})
+
+	local healthWhiteStyles = ReactSpring.useSpring({
+		size = UDim2.new(healthWhite / 100, 0, 1, 0),
+		config = ConfigStyles.healthBar,
 	})
 
 	local countdownStyles, countdownApi = ReactSpring.useSpring(function()
@@ -96,7 +96,7 @@ return function(props)
 						humanoid.WalkSpeed = 0
 						humanoid.JumpHeight = 0
 
-						PlayerUtils.toggleOtherPlayersVisible(false)
+						PlayerUtils.togglePlayersVisible(false)
 					end
 				end)
 
@@ -134,20 +134,17 @@ return function(props)
 						startCFrame = workspace.ShootingRanges[range].StartCutscene1.CFrame,
 						endCFrame = workspace.ShootingRanges[range].StartCutscene2.CFrame,
 						tweenInfo = TweenInfo.new(1),
-					},
-					{
-						startCFrame = workspace.ShootingRanges[range].StartCutscene3.CFrame,
-						endCFrame = workspace.ShootingRanges[range].StartCutscene4.CFrame,
-						tweenInfo = TweenInfo.new(1),
 
 						onCompleted = function()
 							setStage("running")
 
 							task.spawn(function()
-								for i = 3, 0, -1 do
+								for i = 3, 1, -1 do
 									setCountdown(i)
 									task.wait(1)
 								end
+
+								NetworkUtils.FirePromiseRemoteEvent(props.systems, "StartShootingRange", range)
 
 								countdownApi.start({
 									position = UDim2.new(0.5, 0, -0.5, 0),
@@ -156,12 +153,46 @@ return function(props)
 						end,
 					},
 					{
+						startCFrame = workspace.ShootingRanges[range].StartCutscene3.CFrame,
+						endCFrame = workspace.ShootingRanges[range].StartCutscene4.CFrame,
+						tweenInfo = TweenInfo.new(1),
+					},
+					{
 						startCFrame = workspace.ShootingRanges[range].StartCutscene5.CFrame,
 						endCFrame = workspace.ShootingRanges[range].StageRunningCam.CFrame,
 						tweenInfo = TweenInfo.new(1),
 					},
 				}, true)
 			end)
+		elseif stage == "running" then
+			local conn = ReplicatedStorage.Bindables.RangeDamaged.Event:Connect(function()
+				local amountOfEnemies = RangeInfo[Players.LocalPlayer:GetAttribute("ActiveRange")].enemySpawnAmount
+
+				local healthDecreaseIncrement = 100 / amountOfEnemies
+
+				for _ = 1, 25 do
+					setHealthPositionOffset(
+						Vector2.new(Random.new():NextNumber(-0.01, 0.01), Random.new():NextNumber(-0.01, 0.01))
+					)
+					task.wait()
+				end
+
+				setHealthPositionOffset(Vector2.new(0, 0))
+
+				setHealth(function(prev)
+					return prev - healthDecreaseIncrement
+				end)
+
+				task.delay(0.5, function()
+					setHealthWhite(health)
+				end)
+			end)
+
+			return function()
+				if conn then
+					conn:Disconnect()
+				end
+			end
 		end
 	end, { stage, range, countdownApi })
 
@@ -218,6 +249,18 @@ return function(props)
 
 		Health = {
 			Position = UDim2.new(0.5 + healthPositionOffset.X, 0, 0.902 + healthPositionOffset.Y, 0),
+		},
+
+		HealthLabel = {
+			Text = "Health: " .. health .. "/100",
+		},
+
+		HealthProgress = {
+			Size = healthStyles.size,
+		},
+
+		HealthProgressWhite = {
+			Size = healthWhiteStyles.size,
 		},
 
 		BackingUIStroke = {

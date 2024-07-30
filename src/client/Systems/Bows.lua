@@ -1,3 +1,4 @@
+local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -12,6 +13,7 @@ local Players = game.Players
 
 local HOVER_SPEED = 1
 local HOVER_AMPLITUDE = 0.5
+local STAGE_BOW_AXIS_LENGTH = 5
 
 local fireDebounce = false
 
@@ -45,7 +47,23 @@ function Bows.UpdateBows(player)
 
 	local yOffset = math.sin(currentTime * HOVER_SPEED) * HOVER_AMPLITUDE
 
-	local targetCFrame = player.Character.HumanoidRootPart.CFrame * CFrame.new(3.5, yOffset, 0) * CFrame.new(0, 1, 0)
+	local targetCFrame = CFrame.new()
+
+	local activeRange = player:GetAttribute("ActiveRange")
+
+	if bowModel then
+		if activeRange == nil then
+			targetCFrame = player.Character.HumanoidRootPart.CFrame * CFrame.new(3.5, yOffset, 0) * CFrame.new(0, 1, 0)
+
+			ModelUtils.toggleVisiblity(bowModel, true)
+		else
+			targetCFrame = workspace.ShootingRanges[activeRange].StageRunningBow.CFrame * CFrame.new(4, yOffset / 7, 3)
+
+			ModelUtils.toggleVisiblity(bowModel, false, 0.5)
+		end
+	end
+
+	mouse.TargetFilter = workspace.Bows[player.UserId]
 
 	targetCFrame = CFrame.new(targetCFrame.Position, mouse.Hit.Position) * CFrame.Angles(0, math.rad(90), 0)
 
@@ -109,44 +127,50 @@ function Bows.FireBow(player)
 		return
 	end
 
-	for _, bowId in HttpService:JSONDecode(player:GetAttribute("equippedItems")) do
-		local bowModel = workspace.Bows[player.UserId]:FindFirstChild(bowId)
+	local equippedItems = HttpService:JSONDecode(player:GetAttribute("equippedItems"))
 
-		if bowModel and bowModel:FindFirstChild("MiddleNock") then
-			local tween = TweenService:Create(
-				bowModel.MiddleNock.Weld,
-				TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-				{ C0 = CFrame.new(0, -1.43, 1) }
-			)
-			tween:Play()
-			tween.Completed:Wait()
+	local bowModel = workspace.Bows[player.UserId]:FindFirstChild(equippedItems.playerBowSlot)
 
-			task.wait()
+	if bowModel and bowModel:FindFirstChild("MiddleNock") then
+		local tween = TweenService:Create(
+			bowModel.MiddleNock.Weld,
+			TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+			{ C0 = CFrame.new(0, -1.43, 1) }
+		)
+		tween:Play()
+		tween.Completed:Wait()
 
-			local fireTween = TweenService:Create(
-				bowModel.MiddleNock.Weld,
-				TweenInfo.new(0.15, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out),
-				{ C0 = CFrame.new(0, -1.43, 0) }
-			)
-			fireTween:Play()
+		task.wait()
 
-			local arrow = bowModel.Arrow:Clone()
-			arrow.Parent = workspace
+		local fireTween = TweenService:Create(
+			bowModel.MiddleNock.Weld,
+			TweenInfo.new(0.15, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out),
+			{ C0 = CFrame.new(0, -1.43, 0) }
+		)
+		fireTween:Play()
 
-			local v = mouse.Hit.Position - arrow:GetPivot().Position
-			local t = v.Magnitude / 140
-			local targetCFrame = CFrame.lookAlong(mouse.Hit.Position - mouse.Hit.LookVector, -v)
+		local arrow = bowModel.Arrow:Clone()
+		arrow.Parent = workspace
 
-			local fireTweenArrow =
-				TweenService:Create(arrow.Notch, TweenInfo.new(t, Enum.EasingStyle.Linear), { CFrame = targetCFrame })
-			fireTweenArrow:Play()
+		local v = mouse.Hit.Position - arrow:GetPivot().Position
+		local t = v.Magnitude / 140
+		local targetCFrame = CFrame.lookAlong(mouse.Hit.Position - mouse.Hit.LookVector, -v)
 
-			ModelUtils.toggleVisiblity(bowModel.Arrow, false)
+		local fireTweenArrow =
+			TweenService:Create(arrow.Notch, TweenInfo.new(t, Enum.EasingStyle.Linear), { CFrame = targetCFrame })
+		fireTweenArrow:Play()
 
-			task.wait(1)
+		arrow:AddTag("Arrow")
 
-			ModelUtils.toggleVisiblity(bowModel.Arrow, true)
-		end
+		fireTweenArrow.Completed:Connect(function()
+			arrow:Destroy()
+		end)
+
+		ModelUtils.toggleVisiblity(bowModel.Arrow, false)
+
+		task.wait(0.5)
+
+		ModelUtils.toggleVisiblity(bowModel.Arrow, true)
 	end
 end
 
@@ -171,11 +195,7 @@ function Bows.Start()
 		if not gameProcessedEvent then
 			if input.UserInputType == Enum.UserInputType.MouseButton1 and fireDebounce == false then
 				fireDebounce = true
-
 				Bows.FireBow(Players.LocalPlayer)
-
-				task.wait(0.25)
-
 				fireDebounce = false
 			end
 		end

@@ -19,4 +19,8 @@ return {
 		frequency = 0.1,
 		damping = 1,
 	},
+	healthBar = {
+		frequency = 0.2,
+		damping = 0.9,
+	},
 }

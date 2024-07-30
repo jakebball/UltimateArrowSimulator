@@ -35,7 +35,7 @@ function Network.GetEvent(eventName)
 
         return event
     else
-        return networkIndex[eventName].instance
+        return ReplicatedStorage.Network[networkIndex[eventName]]
     end
 end
 
@@ -51,7 +51,7 @@ function Network.GetFunction(functionName)
 
         networkIndex[functionName] = functionId
     else
-        return networkIndex[functionName].instance
+        return ReplicatedStorage.Network[networkIndex[functionName]]
     end
 end
 
