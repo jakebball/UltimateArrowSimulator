@@ -30,7 +30,6 @@ return function(props)
 	local countdown, setCountdown = React.useState(3)
 	local healthPositionOffset, setHealthPositionOffset = React.useState(Vector2.new(0, 0))
 	local health, setHealth = React.useState(100)
-	local healthWhite, setHealthWhite = React.useState(100)
 
 	local rangeStyles = ReactSpring.useSpring({
 		position = UDim2.new(if props.visible then 0.5 else -1.5, 0, 0.5, 0),
@@ -53,8 +52,8 @@ return function(props)
 	})
 
 	local healthWhiteStyles = ReactSpring.useSpring({
-		size = UDim2.new(healthWhite / 100, 0, 1, 0),
-		config = ConfigStyles.healthBar,
+		size = UDim2.new(health / 100, 0, 1, 0),
+		config = ConfigStyles.whiteHealthBar,
 	})
 
 	local countdownStyles, countdownApi = ReactSpring.useSpring(function()
@@ -134,6 +133,16 @@ return function(props)
 						startCFrame = workspace.ShootingRanges[range].StartCutscene1.CFrame,
 						endCFrame = workspace.ShootingRanges[range].StartCutscene2.CFrame,
 						tweenInfo = TweenInfo.new(1),
+					},
+					{
+						startCFrame = workspace.ShootingRanges[range].StartCutscene3.CFrame,
+						endCFrame = workspace.ShootingRanges[range].StartCutscene4.CFrame,
+						tweenInfo = TweenInfo.new(1),
+					},
+					{
+						startCFrame = workspace.ShootingRanges[range].StartCutscene5.CFrame,
+						endCFrame = workspace.ShootingRanges[range].StageRunningCam.CFrame,
+						tweenInfo = TweenInfo.new(1),
 
 						onCompleted = function()
 							setStage("running")
@@ -152,16 +161,6 @@ return function(props)
 							end)
 						end,
 					},
-					{
-						startCFrame = workspace.ShootingRanges[range].StartCutscene3.CFrame,
-						endCFrame = workspace.ShootingRanges[range].StartCutscene4.CFrame,
-						tweenInfo = TweenInfo.new(1),
-					},
-					{
-						startCFrame = workspace.ShootingRanges[range].StartCutscene5.CFrame,
-						endCFrame = workspace.ShootingRanges[range].StageRunningCam.CFrame,
-						tweenInfo = TweenInfo.new(1),
-					},
 				}, true)
 			end)
 		elseif stage == "running" then
@@ -172,8 +171,9 @@ return function(props)
 
 				for _ = 1, 25 do
 					setHealthPositionOffset(
-						Vector2.new(Random.new():NextNumber(-0.01, 0.01), Random.new():NextNumber(-0.01, 0.01))
+						Vector2.new(Random.new():NextNumber(-0.02, 0.02), Random.new():NextNumber(-0.02, 0.02))
 					)
+					print(healthPositionOffset)
 					task.wait()
 				end
 
@@ -181,10 +181,6 @@ return function(props)
 
 				setHealth(function(prev)
 					return prev - healthDecreaseIncrement
-				end)
-
-				task.delay(0.5, function()
-					setHealthWhite(health)
 				end)
 			end)
 
@@ -194,7 +190,7 @@ return function(props)
 				end
 			end
 		end
-	end, { stage, range, countdownApi })
+	end, { stage, range, countdownApi, healthPositionOffset })
 
 	local startStyle
 	local startText
@@ -247,8 +243,8 @@ return function(props)
 			Position = countdownStyles.position,
 		},
 
-		Health = {
-			Position = UDim2.new(0.5 + healthPositionOffset.X, 0, 0.902 + healthPositionOffset.Y, 0),
+		HealthBacking = {
+			Position = UDim2.new(0.5 + healthPositionOffset.X, 0, 0.5 + healthPositionOffset.Y, 0),
 		},
 
 		HealthLabel = {

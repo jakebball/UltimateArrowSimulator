@@ -3,7 +3,7 @@ return {
 		enemyType_1 = {
 			healthRange = { 10, 25 },
 			damage = 10,
-			speed = 1,
+			speed = 20,
 			displayName = "Enemy 1",
 		},
 	},

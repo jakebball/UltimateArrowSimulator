@@ -29,6 +29,10 @@ function ShootingRange.StartShootingRange(player, range)
 	player:SetAttribute("ActiveRange", range)
 	player:SetAttribute("ActiveRangeHealth", 100)
 
+	local defeatedEnemies = Instance.new("Folder")
+	defeatedEnemies.Name = "DefeatedEnemies"
+	defeatedEnemies.Parent = player
+
 	lastEnemyHitTick[player.UserId] = {}
 
 	task.spawn(function()
@@ -40,8 +44,13 @@ function ShootingRange.StartShootingRange(player, range)
 	end)
 
 	local amountOfEnemies = RangeInfo[range].enemySpawnAmount
+	local healthDecrement = 100 / amountOfEnemies
 
 	for i = 1, amountOfEnemies do
+		if player:GetAttribute("ActiveRange") == nil then
+			break
+		end
+
 		local enemyType = "enemyType_" .. math.random(1, #Assets.Enemies[range]:GetChildren())
 		local info = EnemyInfo[range][enemyType]
 
@@ -64,11 +73,26 @@ function ShootingRange.StartShootingRange(player, range)
 
 		lastEnemyHitTick[player.UserId][i] = os.clock()
 
-		task.wait(math.random(2, 3))
+		local timeToReachEnd = (
+			workspace.ShootingRanges[range].Spawns[1].Position - workspace.ShootingRanges[range].Ends[1].Position
+		).Magnitude / enemyData.speed
 
-		-- local timeToReachEnd = (
-		-- 	shootingRangeModel.Spawns[selectedSpawn].Position - shootingRangeModel.Ends[selectedSpawn].Position
-		-- ).Magnitude / enemyData.speed
+		task.delay(timeToReachEnd, function()
+			player:SetAttribute("ActiveRangeHealth", player:GetAttribute("ActiveRangeHealth") - healthDecrement)
+
+			if player:GetAttribute("ActiveRangeHealth") <= 0 then
+				player:SetAttribute("ActiveRange", nil)
+				player:SetAttribute("ActiveRangeHealth", nil)
+
+				for _, v in player:GetChildren() do
+					if v.ClassName == "StringValue" then
+						v:Destroy()
+					end
+				end
+			end
+		end)
+
+		task.wait(math.random(2, 3))
 	end
 end
 
@@ -98,10 +122,6 @@ function ShootingRange.EnemyHit(player, enemyId)
 
 	if player:FindFirstChild(enemyId) then
 		player[enemyId]:SetAttribute("health", player[enemyId]:GetAttribute("health") - realDamage)
-
-		if player[enemyId]:GetAttribute("health") <= 0 then
-			player[enemyId]:Destroy()
-		end
 	end
 end
 

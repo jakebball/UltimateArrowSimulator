@@ -23,11 +23,9 @@ function ShootingRange.GenerateEnemyModel(enemyData)
 	enemyModel:AddTag("Enemy")
 
 	ShootingRange.LocalPlayer[enemyData.id]:GetAttributeChangedSignal("health"):Connect(function()
-		enemyModel:SetAttribute("health", enemyData.health)
-	end)
+		enemyModel:SetAttribute("health", ShootingRange.LocalPlayer[enemyData.id]:GetAttribute("health"))
 
-	ShootingRange.LocalPlayer[enemyData.id].AncestryChanged:Connect(function(_, parent)
-		if parent == nil then
+		if ShootingRange.LocalPlayer[enemyData.id]:GetAttribute("health") <= 0 then
 			ShootingRange.RunKillEffects(enemyModel)
 		end
 	end)
@@ -51,7 +49,7 @@ function ShootingRange.CreateEnemy(enemyData)
 
 	local tween = TweenService:Create(
 		enemyModel.TrackAlignPoint,
-		TweenInfo.new(timeToReachEnd),
+		TweenInfo.new(timeToReachEnd, Enum.EasingStyle.Linear),
 		{ CFrame = shootingRangeModel.Ends[selectedSpawn].CFrame }
 	)
 	tween:Play()
@@ -143,6 +141,10 @@ function ShootingRange.RunHitEffects(damage, realDamage, enemy, damageRange)
 end
 
 function ShootingRange.RunKillEffects(enemy)
+	if ShootingRange.LocalPlayer:GetAttribute("ActiveRange") == nil then
+		return
+	end
+
 	local enemyDefeated = ReplicatedStorage.Assets.Gui.EnemyDefeated:Clone()
 	enemyDefeated.Text = EnemyInfo[ShootingRange.LocalPlayer:GetAttribute("ActiveRange")][enemy:GetAttribute("type")].displayName
 		.. " Defeated!"

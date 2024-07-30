@@ -23,4 +23,8 @@ return {
 		frequency = 0.2,
 		damping = 0.9,
 	},
+	whiteHealthBar = {
+		frequency = 1,
+		damping = 1,
+	},
 }
