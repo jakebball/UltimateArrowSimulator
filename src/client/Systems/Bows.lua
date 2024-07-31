@@ -134,7 +134,7 @@ function Bows.FireBow(player)
 	if bowModel and bowModel:FindFirstChild("MiddleNock") then
 		local tween = TweenService:Create(
 			bowModel.MiddleNock.Weld,
-			TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+			TweenInfo.new(bowModel:GetAttribute("drawbackTime"), Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
 			{ C0 = CFrame.new(0, -1.43, 1) }
 		)
 		tween:Play()
@@ -168,7 +168,7 @@ function Bows.FireBow(player)
 
 		ModelUtils.toggleVisiblity(bowModel.Arrow, false)
 
-		task.wait(0.5)
+		task.wait(bowModel:GetAttribute("reloadTime"))
 
 		ModelUtils.toggleVisiblity(bowModel.Arrow, true)
 	end
@@ -195,7 +195,9 @@ function Bows.Start()
 		if not gameProcessedEvent then
 			if input.UserInputType == Enum.UserInputType.MouseButton1 and fireDebounce == false then
 				fireDebounce = true
+
 				Bows.FireBow(Players.LocalPlayer)
+
 				fireDebounce = false
 			end
 		end

@@ -1,4 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 
@@ -8,6 +9,7 @@ local React = require(Packages.React)
 local RoactCompat = require(Packages.RoactCompat)
 local ReactSpring = require(Packages.ReactSpring)
 local RoactTemplate = require(Packages.RoactTemplate)
+local Trove = require(Packages.Trove)
 
 local ConfigStyles = require(ReplicatedStorage.Shared.ConfigStyles)
 local RangeInfo = require(ReplicatedStorage.Shared.RangeInfo)
@@ -30,6 +32,8 @@ return function(props)
 	local countdown, setCountdown = React.useState(3)
 	local healthPositionOffset, setHealthPositionOffset = React.useState(Vector2.new(0, 0))
 	local health, setHealth = React.useState(100)
+	local roundEnergy, setEnergy = React.useState(0)
+	local energyProgressGradientRotation, setEnergyProgressGradientRotation = React.useState(0)
 
 	local rangeStyles = ReactSpring.useSpring({
 		position = UDim2.new(if props.visible then 0.5 else -1.5, 0, 0.5, 0),
@@ -54,6 +58,16 @@ return function(props)
 	local healthWhiteStyles = ReactSpring.useSpring({
 		size = UDim2.new(health / 100, 0, 1, 0),
 		config = ConfigStyles.whiteHealthBar,
+	})
+
+	local energyStyles = ReactSpring.useSpring({
+		size = UDim2.new(1 - (roundEnergy / 100), 0, 1, 0),
+		config = ConfigStyles.healthBar,
+	})
+
+	local keyFrameStyles = ReactSpring.useSpring({
+		size = if roundEnergy == 100 then UDim2.new(0.25, 0, 0.25, 0) else UDim2.new(0, 0, 0, 0),
+		config = ConfigStyles.checkmark,
 	})
 
 	local countdownStyles, countdownApi = ReactSpring.useSpring(function()
@@ -155,6 +169,8 @@ return function(props)
 
 								NetworkUtils.FirePromiseRemoteEvent(props.systems, "StartShootingRange", range)
 
+								task.spawn(props.systems.ShootingRange.StartShootingRange, range)
+
 								countdownApi.start({
 									position = UDim2.new(0.5, 0, -0.5, 0),
 								})
@@ -164,7 +180,9 @@ return function(props)
 				}, true)
 			end)
 		elseif stage == "running" then
-			local conn = ReplicatedStorage.Bindables.RangeDamaged.Event:Connect(function()
+			local trove = Trove.new()
+
+			trove:Add(ReplicatedStorage.Bindables.RangeDamaged.Event:Connect(function()
 				local amountOfEnemies = RangeInfo[Players.LocalPlayer:GetAttribute("ActiveRange")].enemySpawnAmount
 
 				local healthDecreaseIncrement = 100 / amountOfEnemies
@@ -173,7 +191,6 @@ return function(props)
 					setHealthPositionOffset(
 						Vector2.new(Random.new():NextNumber(-0.02, 0.02), Random.new():NextNumber(-0.02, 0.02))
 					)
-					print(healthPositionOffset)
 					task.wait()
 				end
 
@@ -182,15 +199,37 @@ return function(props)
 				setHealth(function(prev)
 					return prev - healthDecreaseIncrement
 				end)
-			end)
+			end))
+
+			trove:Add(Players.LocalPlayer:GetAttributeChangedSignal("ActiveRangeSpecialEnergy"):Connect(function()
+				setEnergy(Players.LocalPlayer:GetAttribute("ActiveRangeSpecialEnergy"))
+			end))
 
 			return function()
-				if conn then
-					conn:Disconnect()
-				end
+				trove:Destroy()
 			end
 		end
 	end, { stage, range, countdownApi, healthPositionOffset })
+
+	React.useEffect(function()
+		if roundEnergy == 100 then
+			local conn = RunService.Heartbeat:Connect(function(dt)
+				setEnergyProgressGradientRotation(function(prev)
+					local newRotation = prev + (dt * 300)
+
+					if newRotation >= 360 then
+						return 0
+					else
+						return newRotation
+					end
+				end)
+			end)
+
+			return function()
+				conn:Disconnect()
+			end
+		end
+	end, { roundEnergy })
 
 	local startStyle
 	local startText
@@ -263,6 +302,22 @@ return function(props)
 			Color = if healthPositionOffset == Vector2.new(0, 0)
 				then Color3.fromRGB(0, 132, 0)
 				else Color3.fromRGB(255, 0, 0),
+		},
+
+		EnergyLabel = {
+			Text = "Special Ability: " .. roundEnergy .. "/100",
+		},
+
+		EnergyProgressGrey = {
+			Size = energyStyles.size,
+		},
+
+		EnergyProgressGradient = {
+			Rotation = energyProgressGradientRotation,
+		},
+
+		KeyFrame = {
+			Size = keyFrameStyles.size,
 		},
 	})
 end

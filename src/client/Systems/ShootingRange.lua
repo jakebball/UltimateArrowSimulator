@@ -13,19 +13,20 @@ local CameraUtils = require(ReplicatedStorage.Shared.Utils.CameraUtils)
 
 local ItemInfo = require(ReplicatedStorage.Shared.ItemInfo)
 local EnemyInfo = require(ReplicatedStorage.Shared.EnemyInfo)
+local RangeInfo = require(ReplicatedStorage.Shared.RangeInfo)
 
-function ShootingRange.GenerateEnemyModel(enemyData)
+function ShootingRange.GenerateEnemyModel(enemyId, enemyType, enemyHealth)
 	local enemyModel =
-		ReplicatedStorage.Assets.Enemies[ShootingRange.LocalPlayer:GetAttribute("ActiveRange")][enemyData.type]:Clone()
-	enemyModel.Name = enemyData.id
-	enemyModel:SetAttribute("type", enemyData.type)
-	enemyModel:SetAttribute("health", enemyData.health)
+		ReplicatedStorage.Assets.Enemies[ShootingRange.LocalPlayer:GetAttribute("ActiveRange")][enemyType]:Clone()
+	enemyModel.Name = enemyId
+	enemyModel:SetAttribute("type", enemyType)
+	enemyModel:SetAttribute("health", enemyHealth)
 	enemyModel:AddTag("Enemy")
 
-	ShootingRange.LocalPlayer[enemyData.id]:GetAttributeChangedSignal("health"):Connect(function()
-		enemyModel:SetAttribute("health", ShootingRange.LocalPlayer[enemyData.id]:GetAttribute("health"))
+	ShootingRange.LocalPlayer:WaitForChild(enemyId):GetAttributeChangedSignal("health"):Connect(function()
+		enemyModel:SetAttribute("health", ShootingRange.LocalPlayer[enemyId]:GetAttribute("health"))
 
-		if ShootingRange.LocalPlayer[enemyData.id]:GetAttribute("health") <= 0 then
+		if ShootingRange.LocalPlayer[enemyId]:GetAttribute("health") <= 0 then
 			ShootingRange.RunKillEffects(enemyModel)
 		end
 	end)
@@ -35,17 +36,17 @@ function ShootingRange.GenerateEnemyModel(enemyData)
 	return enemyModel
 end
 
-function ShootingRange.CreateEnemy(enemyData)
+function ShootingRange.CreateEnemy(enemyId, enemyType, enemyHealth, enemySpeed)
 	local shootingRangeModel = workspace.ShootingRanges[ShootingRange.LocalPlayer:GetAttribute("ActiveRange")]
 
 	local selectedSpawn = math.random(1, #shootingRangeModel.Spawns:GetChildren())
 
-	local enemyModel = ShootingRange.GenerateEnemyModel(enemyData)
+	local enemyModel = ShootingRange.GenerateEnemyModel(enemyId, enemyType, enemyHealth)
 	enemyModel.TrackAlignPoint.CFrame = shootingRangeModel.Spawns[selectedSpawn].CFrame
 
 	local timeToReachEnd = (
 		shootingRangeModel.Spawns[selectedSpawn].Position - shootingRangeModel.Ends[selectedSpawn].Position
-	).Magnitude / enemyData.speed
+	).Magnitude / enemySpeed
 
 	local tween = TweenService:Create(
 		enemyModel.TrackAlignPoint,
@@ -55,12 +56,11 @@ function ShootingRange.CreateEnemy(enemyData)
 	tween:Play()
 	tween.Completed:Connect(function()
 		enemyModel:Destroy()
-
 		ReplicatedStorage.Bindables.RangeDamaged:Fire()
 	end)
 end
 
-function ShootingRange.RunHitEffects(damage, realDamage, enemy, damageRange)
+function ShootingRange.RunHitEffects(damage, realDamage, enemy, damageRange, energy)
 	task.spawn(function()
 		local animLength = 0.5
 
@@ -74,6 +74,7 @@ function ShootingRange.RunHitEffects(damage, realDamage, enemy, damageRange)
 			hitMarker = ReplicatedStorage.Assets.Gui.CriticalHitMarker:Clone()
 			hitMarker.Text = NumberUtils.Abbreviate(realDamage)
 			hitMarker.Rotation = markerRotation
+			hitMarker.Position = UDim2.new(0.5, 0, 0, 0)
 			hitMarker.Parent = enemy.HitMarkers
 
 			TweenService:Create(hitMarker, TweenInfo.new(0.15, Enum.EasingStyle.Sine), {
@@ -82,7 +83,7 @@ function ShootingRange.RunHitEffects(damage, realDamage, enemy, damageRange)
 
 			local markerTween = TweenService:Create(hitMarker, TweenInfo.new(animLength), {
 				Rotation = markerRotation + 5,
-				Position = UDim2.new(0.5, 0, 0.4, 0),
+				Position = UDim2.new(0.5, 0, -0.5, 0),
 			})
 			markerTween:Play()
 			markerTween.Completed:Connect(function()
@@ -99,11 +100,12 @@ function ShootingRange.RunHitEffects(damage, realDamage, enemy, damageRange)
 			hitMarker = ReplicatedStorage.Assets.Gui.RegularHitMarker:Clone()
 			hitMarker.Text = NumberUtils.Abbreviate(realDamage)
 			hitMarker.Rotation = markerRotation
+			hitMarker.Position = UDim2.new(0.5, 0, 0, 0)
 			hitMarker.Parent = enemy.HitMarkers
 
 			local markerTween = TweenService:Create(hitMarker, TweenInfo.new(animLength), {
 				Rotation = markerRotation + 5,
-				Position = UDim2.new(0.5, 0, 0.4, 0),
+				Position = UDim2.new(0.5, 0, -0.5, 0),
 			})
 			markerTween:Play()
 			markerTween.Completed:Connect(function()
@@ -117,6 +119,25 @@ function ShootingRange.RunHitEffects(damage, realDamage, enemy, damageRange)
 				end)
 			end)
 		end
+
+		local energyMarker = ReplicatedStorage.Assets.Gui.EnergyHitMarker:Clone()
+		energyMarker.Text = "+" .. NumberUtils.Abbreviate(energy)
+		energyMarker.Position = UDim2.new(0.5, 0, 0.5, 0)
+		energyMarker.Parent = enemy.HitMarkers
+
+		local energyTween = TweenService:Create(energyMarker, TweenInfo.new(animLength), {
+			Position = UDim2.new(0.5, 0, 0.6, 0),
+		})
+		energyTween:Play()
+		energyTween.Completed:Connect(function()
+			local tweenOut = TweenService:Create(energyMarker, TweenInfo.new(0.2), {
+				Size = UDim2.new(0, 0, 0, 0),
+			})
+			tweenOut:Play()
+			tweenOut.Completed:Connect(function()
+				energyMarker:Destroy()
+			end)
+		end)
 	end)
 
 	task.spawn(function()
@@ -170,6 +191,29 @@ function ShootingRange.RunKillEffects(enemy)
 	enemy:Destroy()
 end
 
+function ShootingRange.StartShootingRange(range)
+	local rangeInfo = RangeInfo[range]
+
+	repeat
+		task.wait()
+	until ShootingRange.LocalPlayer:GetAttribute("rangeRandomSeed")
+
+	for i = 1, rangeInfo.enemySpawnAmount do
+		local rangeRandom = Random.new(ShootingRange.LocalPlayer:GetAttribute("rangeRandomSeed"))
+
+		local randomEnemyTypeIndex = rangeRandom:NextInteger(1, #ReplicatedStorage.Assets.Enemies[range]:GetChildren())
+
+		local enemyType = "enemyType_" .. randomEnemyTypeIndex
+
+		local info = EnemyInfo[range][enemyType]
+		local enemyHealth = rangeRandom:NextNumber(info.healthRange[1], info.healthRange[2])
+
+		ShootingRange.CreateEnemy(i, enemyType, enemyHealth, info.speed)
+
+		task.wait(rangeRandom:NextNumber(1, 5))
+	end
+end
+
 function ShootingRange.Heartbeat()
 	for _, enemy in CollectionService:GetTagged("Enemy") do
 		local overlapParams = OverlapParams.new()
@@ -186,12 +230,22 @@ function ShootingRange.Heartbeat()
 			local itemInfo =
 				ItemInfo[HttpService:JSONDecode(ShootingRange.LocalPlayer:GetAttribute("equippedItems")).playerBowSlot]
 
-			local damage = Random.new(ShootingRange.LocalPlayer:GetAttribute("hitRandomSeed") or math.random(1, 100))
-				:NextInteger(unpack(itemInfo.damageRange))
+			local enemyInfo =
+				EnemyInfo[ShootingRange.LocalPlayer:GetAttribute("ActiveRange") or "olreliable"][enemy:GetAttribute(
+					"type"
+				) or "enemyType_1"]
+
+			local randomSeed = ShootingRange.LocalPlayer:GetAttribute("rangeRandomSeed") or math.random(1, 100)
+
+			local damage = Random.new(randomSeed):NextInteger(unpack(itemInfo.damageRange))
 
 			local realDamage = StatCalculationUtils.GetTotalDamage(ShootingRange.LocalPlayer, damage)
 
-			ShootingRange.RunHitEffects(damage, realDamage, enemy, itemInfo.damageRange)
+			local energy = Random.new(randomSeed):NextInteger(unpack(enemyInfo.energyRange))
+
+			local realEnergy = StatCalculationUtils.GetTotalEnergy(ShootingRange.LocalPlayer, energy)
+
+			ShootingRange.RunHitEffects(damage, realDamage, enemy, itemInfo.damageRange, realEnergy)
 
 			task.delay(0.1, function()
 				enemy:SetAttribute("HitDebounce", false)
@@ -203,7 +257,6 @@ function ShootingRange.Heartbeat()
 end
 
 function ShootingRange.Start()
-	NetworkUtils.ConnectPromiseRemoteEvent(ShootingRange.Systems, "SpawnRangeEnemy", ShootingRange.CreateEnemy)
 	RunService.Heartbeat:Connect(ShootingRange.Heartbeat)
 end
 
