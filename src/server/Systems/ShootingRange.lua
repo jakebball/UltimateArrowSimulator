@@ -13,6 +13,8 @@ local ShootingRange = {}
 
 local lastEnemyHitTick = {}
 
+local randomObject
+
 function ShootingRange.StartShootingRange(player, range)
 	if player:GetAttribute("ActiveRange") then
 		warn("Player is already in a range")
@@ -29,32 +31,23 @@ function ShootingRange.StartShootingRange(player, range)
 	player:SetAttribute("ActiveRange", range)
 	player:SetAttribute("ActiveRangeHealth", 100)
 	player:SetAttribute("ActiveRangeSpecialEnergy", 0)
-
-	local defeatedEnemies = Instance.new("Folder")
-	defeatedEnemies.Name = "DefeatedEnemies"
-	defeatedEnemies.Parent = player
+	player:SetAttribute("ActiveLaneRangeIndex", 2)
 
 	lastEnemyHitTick[player.UserId] = {}
 
-	task.spawn(function()
-		while true do
-			player:SetAttribute("rangeRandomSeed", math.random(1, 100))
-
-			task.wait(Random.new():NextNumber(0, 1))
-		end
-	end)
+	player:SetAttribute("rangeRandomSeed", math.random(1, 1000))
 
 	local amountOfEnemies = RangeInfo[range].enemySpawnAmount
 	local healthDecrement = 100 / amountOfEnemies
+
+	randomObject = Random.new(player:GetAttribute("rangeRandomSeed"))
 
 	for i = 1, amountOfEnemies do
 		if player:GetAttribute("ActiveRange") == nil then
 			break
 		end
 
-		local rangeRandom = Random.new(player:GetAttribute("rangeRandomSeed"))
-
-		local randomEnemyTypeIndex = rangeRandom:NextInteger(1, #Assets.Enemies[range]:GetChildren())
+		local randomEnemyTypeIndex = randomObject:NextInteger(1, #Assets.Enemies[range]:GetChildren())
 
 		local enemyType = "enemyType_" .. randomEnemyTypeIndex
 		local info = EnemyInfo[range][enemyType]
@@ -62,10 +55,12 @@ function ShootingRange.StartShootingRange(player, range)
 		local enemyData = {
 			id = i,
 			type = enemyType,
-			health = rangeRandom:NextNumber(info.healthRange[1], info.healthRange[2]),
+			health = randomObject:NextNumber(info.healthRange[1], info.healthRange[2]),
 			damage = info.damage,
 			speed = info.speed,
 		}
+
+		local selectedSpawn = randomObject:NextInteger(1, 3)
 
 		local enemyObject = Instance.new("StringValue")
 		enemyObject.Name = i
@@ -74,6 +69,7 @@ function ShootingRange.StartShootingRange(player, range)
 		enemyObject:SetAttribute("lastDamage", enemyData.speed)
 		enemyObject:SetAttribute("energy", enemyData.energy)
 		enemyObject:SetAttribute("type", enemyData.type)
+		enemyObject:SetAttribute("selectedSpawn", selectedSpawn)
 		enemyObject.Parent = player
 
 		lastEnemyHitTick[player.UserId][i] = os.clock()
@@ -97,7 +93,7 @@ function ShootingRange.StartShootingRange(player, range)
 			end
 		end)
 
-		task.wait(rangeRandom:NextNumber(1, 5))
+		task.wait(randomObject:NextNumber(1, 2))
 	end
 end
 
@@ -122,9 +118,7 @@ function ShootingRange.EnemyHit(player, enemyId)
 
 	local itemInfo = ItemInfo[HttpService:JSONDecode(player:GetAttribute("equippedItems")).playerBowSlot]
 
-	local randomSeed = player:GetAttribute("rangeRandomSeed") or math.random(1, 100)
-
-	local damage = Random.new(randomSeed):NextInteger(unpack(itemInfo.damageRange))
+	local damage = randomObject:NextInteger(unpack(itemInfo.damageRange))
 
 	local realDamage = StatCalculationUtils.GetTotalDamage(player, damage)
 
@@ -132,13 +126,13 @@ function ShootingRange.EnemyHit(player, enemyId)
 
 	local enemyInfo = EnemyInfo[player:GetAttribute("ActiveRange")][enemyObject:GetAttribute("type")]
 
-	local energy = Random.new(randomSeed):NextInteger(unpack(enemyInfo.energyRange))
+	local energy = randomObject:NextInteger(unpack(enemyInfo.energyRange))
 
 	local realEnergy = StatCalculationUtils.GetTotalEnergy(player, energy)
 
 	player:SetAttribute(
 		"ActiveRangeSpecialEnergy",
-		math.clamp(player:GetAttribute("ActiveRangeSpecialEnergy") + realEnergy, 0, 100)
+		math.clamp(player:GetAttribute("ActiveRangeSpecialEnergy") + realEnergy, 0, 300)
 	)
 end
 

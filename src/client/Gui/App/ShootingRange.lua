@@ -34,6 +34,7 @@ return function(props)
 	local health, setHealth = React.useState(100)
 	local roundEnergy, setEnergy = React.useState(0)
 	local energyProgressGradientRotation, setEnergyProgressGradientRotation = React.useState(0)
+	local specialAbilityKeyCode, setSpecialAbilityKeyCode = React.useState("E")
 
 	local rangeStyles = ReactSpring.useSpring({
 		position = UDim2.new(if props.visible then 0.5 else -1.5, 0, 0.5, 0),
@@ -66,8 +67,18 @@ return function(props)
 	})
 
 	local keyFrameStyles = ReactSpring.useSpring({
-		size = if roundEnergy == 100 then UDim2.new(0.25, 0, 0.25, 0) else UDim2.new(0, 0, 0, 0),
+		size = if roundEnergy >= 100 then UDim2.new(0.25, 0, 0.25, 0) else UDim2.new(0, 0, 0, 0),
 		config = ConfigStyles.checkmark,
+	})
+
+	local extraChargeStyles = ReactSpring.useSpring({
+		size = UDim2.new(1 - (roundEnergy % 100) / 100, 0, 1, 0),
+		config = ConfigStyles.healthBar,
+	})
+
+	local specialFrameStyles = ReactSpring.useSpring({
+		size = if roundEnergy >= 100 then UDim2.new(0.137 * 1.1, 0, 2.354 * 1.1, 0) else UDim2.new(0.137, 0, 2.354, 0),
+		config = ConfigStyles.menuTransition,
 	})
 
 	local countdownStyles, countdownApi = ReactSpring.useSpring(function()
@@ -212,7 +223,7 @@ return function(props)
 	end, { stage, range, countdownApi, healthPositionOffset })
 
 	React.useEffect(function()
-		if roundEnergy == 100 then
+		if roundEnergy >= 100 then
 			local conn = RunService.Heartbeat:Connect(function(dt)
 				setEnergyProgressGradientRotation(function(prev)
 					local newRotation = prev + (dt * 300)
@@ -228,6 +239,8 @@ return function(props)
 			return function()
 				conn:Disconnect()
 			end
+		else
+			setHealthPositionOffset(Vector2.new(0, 0))
 		end
 	end, { roundEnergy })
 
@@ -304,10 +317,6 @@ return function(props)
 				else Color3.fromRGB(255, 0, 0),
 		},
 
-		EnergyLabel = {
-			Text = "Special Ability: " .. roundEnergy .. "/100",
-		},
-
 		EnergyProgressGrey = {
 			Size = energyStyles.size,
 		},
@@ -318,6 +327,26 @@ return function(props)
 
 		KeyFrame = {
 			Size = keyFrameStyles.size,
+		},
+
+		SpecialKey = {
+			Text = specialAbilityKeyCode,
+		},
+
+		KeyUIStroke = {
+			Transparency = if roundEnergy >= 100 then 0 else 1,
+		},
+
+		Special = {
+			Size = specialFrameStyles.size,
+		},
+
+		ExtraChargesLabel = {
+			Text = if roundEnergy >= 100 then string.sub(roundEnergy, 1, 1) else 0,
+		},
+
+		SpecialChargeGrey = {
+			Size = extraChargeStyles.size,
 		},
 	})
 end
