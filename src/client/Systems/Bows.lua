@@ -13,8 +13,6 @@ local Players = game.Players
 local HOVER_SPEED = 1
 local HOVER_AMPLITUDE = 0.5
 
-local fireDebounce = false
-
 local mouse = Players.LocalPlayer:GetMouse()
 
 function Bows.UpdateBows(player)
@@ -128,6 +126,10 @@ function Bows.FireBow(player)
 
 	local equippedItems = HttpService:JSONDecode(player:GetAttribute("equippedItems"))
 
+	if workspace.Bows:FindFirstChild(player.UserId) == nil then
+		return
+	end
+
 	local bowModel = workspace.Bows[player.UserId]:FindFirstChild(equippedItems.playerBowSlot)
 
 	if bowModel and bowModel:FindFirstChild("MiddleNock") then
@@ -174,18 +176,16 @@ function Bows.Start()
 		end
 	end)
 
-	UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-		if
-			not gameProcessedEvent
-			and input.UserInputType == Enum.UserInputType.MouseButton1
-			and fireDebounce == false
-			and Bows.LocalPlayer:GetAttribute("SpecialInProgress") ~= true
-		then
-			fireDebounce = true
+	task.spawn(function()
+		while true do
+			task.wait(0.5)
 
-			Bows.FireBow(Players.LocalPlayer)
-
-			fireDebounce = false
+			if
+				Bows.LocalPlayer:GetAttribute("SpecialInProgress") ~= true
+				and Bows.LocalPlayer:GetAttribute("ActiveRange")
+			then
+				Bows.FireBow(Players.LocalPlayer)
+			end
 		end
 	end)
 end

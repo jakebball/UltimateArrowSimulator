@@ -6,16 +6,17 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local ContextActionService = game:GetService("ContextActionService")
+local UserInputService = game:GetService("UserInputService")
 
 local NetworkUtils = require(ReplicatedStorage.Shared.Utils.NetworkUtils)
 local NumberUtils = require(ReplicatedStorage.Shared.Utils.NumberUtils)
 local StatCalculationUtils = require(ReplicatedStorage.Shared.Utils.StatCalculationUtils)
-local CameraUtils = require(ReplicatedStorage.Shared.Utils.CameraUtils)
 
 local ItemInfo = require(ReplicatedStorage.Shared.ItemInfo)
 local EnemyInfo = require(ReplicatedStorage.Shared.EnemyInfo)
 local RangeInfo = require(ReplicatedStorage.Shared.RangeInfo)
 
+local enemiesKilled = 0
 local randomObject
 
 function ShootingRange.GenerateEnemyModel(enemyId, enemyType, enemyHealth, laneIndex)
@@ -57,6 +58,10 @@ function ShootingRange.CreateEnemy(enemyId, enemyType, enemyHealth, enemySpeed, 
 	tween.Completed:Connect(function()
 		enemyModel:Destroy()
 		ReplicatedStorage.Bindables.RangeDamaged:Fire()
+
+		if ShootingRange.LocalPlayer:GetAttribute("ActiveRangeHealth") <= 0 then
+			ShootingRange.EndShootingRange()
+		end
 	end)
 end
 
@@ -164,7 +169,6 @@ function ShootingRange.RunHitEffects(damage, realDamage, enemy, damageRange, ene
 
 	local arrowModel = ReplicatedStorage.Assets.Arrows[equippedBow]:Clone()
 	arrowModel.Parent = enemy
-
 end
 
 function ShootingRange.RunKillEffects(enemy)
@@ -192,7 +196,11 @@ function ShootingRange.RunKillEffects(enemy)
 		end)
 	end)
 
-	CameraUtils.shakeCamera(0.25, 0.07)
+	enemiesKilled += 1
+
+	if enemiesKilled >= RangeInfo[ShootingRange.LocalPlayer:GetAttribute("ActiveRange")].enemySpawnAmount then
+		ShootingRange.EndShootingRange()
+	end
 
 	enemy:Destroy()
 end
@@ -203,6 +211,10 @@ function ShootingRange.StartShootingRange(range)
 	repeat
 		task.wait()
 	until ShootingRange.LocalPlayer:GetAttribute("rangeRandomSeed")
+
+	repeat
+		task.wait()
+	until ShootingRange.LocalPlayer:GetAttribute("ActiveRange")
 
 	local shootingRangeModel = workspace.ShootingRanges[range]
 
@@ -239,6 +251,18 @@ function ShootingRange.StartShootingRange(range)
 	ContextActionService:BindAction("MoveLaneLeft", bindAction, false, Enum.KeyCode.A)
 	ContextActionService:BindAction("MoveLaneRight", bindAction, false, Enum.KeyCode.D)
 
+	local mouse = ShootingRange.LocalPlayer:GetMouse()
+
+	UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+		if not gameProcessedEvent then
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				if mouse.Target.Parent.Name == "LaneClick" then
+					ShootingRange.LocalPlayer:SetAttribute("ActiveLaneRangeIndex", mouse.Target.Name)
+				end
+			end
+		end
+	end)
+
 	randomObject = Random.new(ShootingRange.LocalPlayer:GetAttribute("rangeRandomSeed"))
 
 	for i = 1, rangeInfo.enemySpawnAmount do
@@ -253,6 +277,14 @@ function ShootingRange.StartShootingRange(range)
 
 		task.wait(randomObject:NextNumber(1, 2))
 	end
+end
+
+function ShootingRange.EndShootingRange()
+	ContextActionService:UnbindAction("ActivateSpecial")
+	ContextActionService:UnbindAction("MoveLaneLeft")
+	ContextActionService:UnbindAction("MoveLaneRight")
+
+	enemiesKilled = 0
 end
 
 function ShootingRange.Heartbeat()

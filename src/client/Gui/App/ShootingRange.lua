@@ -46,6 +46,11 @@ return function(props)
 		config = ConfigStyles.menuTransition,
 	})
 
+	local endMenuStyles = ReactSpring.useSpring({
+		position = UDim2.new(if stage == "end" then 0.5 else -1.5, 0, 0.5, 0),
+		config = ConfigStyles.menuTransitionEnd,
+	})
+
 	local runningMenuStyles = ReactSpring.useSpring({
 		position = UDim2.new(if stage == "running" then 0.5 else -1.5, 0, 0.5, 0),
 		config = ConfigStyles.menuTransition,
@@ -173,6 +178,10 @@ return function(props)
 							setStage("running")
 
 							task.spawn(function()
+								countdownApi.start({
+									position = UDim2.new(0.5, 0, 0.1, 0),
+								})
+
 								for i = 3, 1, -1 do
 									setCountdown(i)
 									task.wait(1)
@@ -213,7 +222,15 @@ return function(props)
 			end))
 
 			trove:Add(Players.LocalPlayer:GetAttributeChangedSignal("ActiveRangeSpecialEnergy"):Connect(function()
-				setEnergy(Players.LocalPlayer:GetAttribute("ActiveRangeSpecialEnergy"))
+				setEnergy(Players.LocalPlayer:GetAttribute("ActiveRangeSpecialEnergy") or 0)
+			end))
+
+			trove:Add(Players.LocalPlayer:GetAttributeChangedSignal("ActiveRange"):Connect(function()
+				if Players.LocalPlayer:GetAttribute("ActiveRange") == nil then
+					task.wait(1)
+
+					setStage("end")
+				end
 			end))
 
 			return function()
@@ -282,6 +299,61 @@ return function(props)
 					activated = function()
 						setStage("intro")
 					end,
+				}),
+			},
+		},
+
+		EndMenu = {
+			Position = endMenuStyles.position,
+		},
+
+		EndButtonList = {
+			[RoactCompat.Children] = {
+				Retry = e(AnimatedButton, {
+					size = UDim2.new(0.5, 0, 0.5, 0),
+					position = UDim2.new(0.5, 0, 0.85, 0),
+					style = "confirm",
+					text = "Retry",
+					layoutOrder = 2,
+
+					activated = function()
+						setStage("intro")
+					end,
+				}),
+
+				Leave = e(AnimatedButton, {
+					size = UDim2.new(0.5, 0, 0.5, 0),
+					position = UDim2.new(0.5, 0, 0.85, 0),
+					style = "cancel",
+					text = "Leave",
+					layoutOrder = 1,
+
+					activated = function()
+						workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+						--	workspace.CurrentCamera.Focus = Players.LocalPlayer.Character.HumanoidRootPart
+						setRange(nil)
+
+						local humanoid = PlayerUtils.getHumanoidFromPlayer(Players.LocalPlayer)
+
+						if humanoid then
+							humanoid.WalkSpeed = 16
+							humanoid.JumpHeight = 30
+
+							PlayerUtils.togglePlayersVisible(true)
+						end
+
+						props.setMenuState("gameplay")
+					end,
+				}),
+
+				ToggleAutoRetry = e(AnimatedButton, {
+					size = UDim2.new(0.5, 0, 0.5, 0),
+					position = UDim2.new(0.5, 0, 0.85, 0),
+					style = "confirm",
+					text = "Auto Retry (1)",
+					layoutOrder = 3,
+
+					activated = function() end,
 				}),
 			},
 		},

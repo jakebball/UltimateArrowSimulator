@@ -7,6 +7,10 @@ return {
 		frequency = 0.1,
 		damping = 0.8,
 	},
+	menuTransitionEnd = {
+		frequency = 0.5,
+		damping = 0.8,
+	},
 	checkmark = {
 		frequency = 0.1,
 		damping = 0.7,

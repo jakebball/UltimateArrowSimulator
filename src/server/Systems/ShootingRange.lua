@@ -82,18 +82,29 @@ function ShootingRange.StartShootingRange(player, range)
 			player:SetAttribute("ActiveRangeHealth", player:GetAttribute("ActiveRangeHealth") - healthDecrement)
 
 			if player:GetAttribute("ActiveRangeHealth") <= 0 then
-				player:SetAttribute("ActiveRange", nil)
-				player:SetAttribute("ActiveRangeHealth", nil)
-
-				for _, v in player:GetChildren() do
-					if v.ClassName == "StringValue" then
-						v:Destroy()
-					end
-				end
+				ShootingRange.EndShootingRange(player)
 			end
 		end)
 
 		task.wait(randomObject:NextNumber(1, 2))
+
+		if player:GetAttribute("ActiveRange") == nil then
+			break
+		end
+	end
+end
+
+function ShootingRange.EndShootingRange(player)
+	player:SetAttribute("ActiveRange", nil)
+	player:SetAttribute("ActiveRangeHealth", nil)
+	player:SetAttribute("ActiveRangeSpecialEnergy", nil)
+	player:SetAttribute("ActiveLaneRangeIndex", nil)
+	player:SetAttribute("RangeEnemiesDefeated", 0)
+
+	for _, v in player:GetChildren() do
+		if v.ClassName == "StringValue" then
+			v:Destroy()
+		end
 	end
 end
 
@@ -134,11 +145,35 @@ function ShootingRange.EnemyHit(player, enemyId)
 		"ActiveRangeSpecialEnergy",
 		math.clamp(player:GetAttribute("ActiveRangeSpecialEnergy") + realEnergy, 0, 300)
 	)
+
+	if enemyObject:GetAttribute("health") <= 0 then
+		local enemiesDefeated = player:GetAttribute("RangeEnemiesDefeated") or 0
+
+		enemiesDefeated = enemiesDefeated + 1
+
+		if enemiesDefeated == RangeInfo[player:GetAttribute("ActiveRange")].enemySpawnAmount then
+			ShootingRange.EndShootingRange(player)
+		end
+
+		player:SetAttribute("RangeEnemiesDefeated", nil)
+	end
+end
+
+function ShootingRange.SpecialUsed(player)
+	player:SetAttribute("ActiveRangeSpecialEnergy", player:GetAttribute("ActiveRangeSpecialEnergy") - 100)
+end
+
+function ShootingRange.ToggleChallengeMode(player, active)
+	player:SetAttribute("ChallengeMode", active)
 end
 
 function ShootingRange.Start()
 	ShootingRange.Systems.Network.GetEvent("StartShootingRange").OnServerEvent:Connect(ShootingRange.StartShootingRange)
 	ShootingRange.Systems.Network.GetEvent("EnemyHit").OnServerEvent:Connect(ShootingRange.EnemyHit)
+	ShootingRange.Systems.Network.GetEvent("SpecialUsed").OnServerEvent:Connect(ShootingRange.SpecialUsed)
+	ShootingRange.Systems.Network
+		.GetEvent("ToggleChallengeMode").OnServerEvent
+		:Connect(ShootingRange.ToggleChallengeMode)
 end
 
 return ShootingRange
