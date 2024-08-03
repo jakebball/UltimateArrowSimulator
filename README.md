@@ -7,7 +7,7 @@ The main repo for the Roblox game Ultimate Arrow Simulator
 # Server
 [Bows](src/server/Systems/Bows.lua) - transactions and replication of bow actions\
 [Playerdata](src/server/Systems/Playerdata/init.lua) - loading the playerdata and listening for changes via attributes\
-[Moderation](src/server/Systems/Moderation.lua) - tracking and dealing with exploit reports\ 
+[Moderation](src/server/Systems/Moderation.lua) - tracking and dealing with exploit reports\
 [Network](src/server/Systems/Network.lua) - gets remote events and scramble the names via UUIDs for security\
 [ShootingRange](src/server/Systems/ShootingRange.lua) - transactions and replication of shooting range actions
 
