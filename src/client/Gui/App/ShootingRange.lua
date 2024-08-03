@@ -21,6 +21,7 @@ local GradeInfo = require(ReplicatedStorage.Shared.GradeInfo)
 
 local AnimatedButton = require(script.Parent.Parent.Components.AnimatedButton)
 local ModelRenderer = require(game.StarterPlayer.StarterPlayerScripts.Client.Gui.Components.ModelRenderer)
+local CloseButton = require(game.StarterPlayer.StarterPlayerScripts.Client.Gui.Components.CloseButton)
 
 local ShootingRangeTemplate =
 	RoactTemplate.fromInstance(RoactCompat, ReplicatedStorage.Assets.Gui.Templates.ShootingRange)
@@ -145,7 +146,7 @@ return function(props)
 		end
 
 		return function()
-			for _, prompt in ipairs(prompts) do
+			for _, prompt in prompts do
 				prompt:Destroy()
 			end
 		end
@@ -211,6 +212,8 @@ return function(props)
 				}, true)
 			end)
 		elseif stage == "running" then
+			CameraUtils.setBlur(false)
+
 			local trove = Trove.new()
 
 			trove:Add(ReplicatedStorage.Bindables.RangeDamaged.Event:Connect(function()
@@ -250,6 +253,8 @@ return function(props)
 				trove:Destroy()
 			end
 		elseif stage == "end" then
+			CameraUtils.setBlur(true, 14)
+
 			local trove = Trove.new()
 
 			if autoRetry == true then
@@ -343,6 +348,31 @@ return function(props)
 						setStage("intro")
 					end,
 				}),
+
+				Close = e(CloseButton, {
+					position = UDim2.new(0.8, 0, 0.2, 0),
+					size = UDim2.new(0.15, 0, 0.15, 0),
+
+					activated = function()
+						workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+						workspace.CurrentCamera.Focus = previousCameraFocus
+
+						setRange(nil)
+
+						local humanoid = PlayerUtils.getHumanoidFromPlayer(Players.LocalPlayer)
+
+						if humanoid then
+							humanoid.WalkSpeed = 16
+							humanoid.JumpHeight = 30
+
+							PlayerUtils.togglePlayersVisible(true)
+						end
+
+						CameraUtils.setBlur(false)
+
+						props.setMenuState("gameplay")
+					end,
+				}),
 			},
 		},
 
@@ -382,6 +412,7 @@ return function(props)
 					activated = function()
 						workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
 						workspace.CurrentCamera.Focus = previousCameraFocus
+
 						setRange(nil)
 
 						local humanoid = PlayerUtils.getHumanoidFromPlayer(Players.LocalPlayer)
@@ -392,6 +423,8 @@ return function(props)
 
 							PlayerUtils.togglePlayersVisible(true)
 						end
+
+						CameraUtils.setBlur(false)
 
 						props.setMenuState("gameplay")
 					end,

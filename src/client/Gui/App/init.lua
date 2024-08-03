@@ -9,7 +9,8 @@ local React = require(Packages.React)
 local MusicPlayer = require(script.MusicPlayer)
 local HUD = require(script.HUD)
 local Backpack = require(script.Backpack)
-local shootingRange = require(script.ShootingRange)
+local ShootingRange = require(script.ShootingRange)
+local SimulationMatrix = require(script.SimulationMatrix)
 
 local CameraUtils = require(ReplicatedStorage.Shared.Utils.CameraUtils)
 
@@ -30,17 +31,21 @@ local menuStates = {
 		"musicPlayer",
 		"shootingRange",
 	},
+	["simulationMatrix"] = {
+		"musicPlayer",
+		"simulationMatrix",
+	},
 }
 
 local blurredMenus = {
 	"backpack",
+	"simulationMatrix",
 }
 
 local tableAttributes = {
 	"bows",
 	"equippedItems",
 	"simulationTokens",
-	"unlockedRanges",
 }
 
 local function App(props)
@@ -86,7 +91,9 @@ local function App(props)
 	end, {})
 
 	React.useEffect(function()
-		CameraUtils.setBlur(table.find(blurredMenus, menuState) ~= nil, 16)
+		if menuState ~= "shootingRange" then
+			CameraUtils.setBlur(table.find(blurredMenus, menuState) ~= nil, 16)
+		end
 	end, { menuState })
 
 	return e(React.Fragment, {}, {
@@ -107,8 +114,15 @@ local function App(props)
 			systems = props.systems,
 		}),
 
-		ShootingRange = e(shootingRange, {
+		ShootingRange = e(ShootingRange, {
 			visible = table.find(menuStates[menuState], "shootingRange"),
+			playerdata = playerdata,
+			systems = props.systems,
+			setMenuState = setMenuState,
+		}),
+
+		SimulationMatrix = e(SimulationMatrix, {
+			visible = table.find(menuStates[menuState], "simulationMatrix"),
 			playerdata = playerdata,
 			systems = props.systems,
 			setMenuState = setMenuState,
