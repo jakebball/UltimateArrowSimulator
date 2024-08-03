@@ -6,7 +6,11 @@ return {
 		playerBowSlot = "theclassic",
 	},
 	unlockedRanges = { "olreliable" },
-	simulationTokens = {},
+	simulationTokens = {
+		basic = {
+			["50Grade"] = 0,
+		},
+	},
 	simulationDust = 0,
 	equippedSpecial = "rapidFire",
 }

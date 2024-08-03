@@ -1,4 +1,3 @@
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Packages = ReplicatedStorage.Shared.Packages
@@ -14,64 +13,63 @@ local ModelRenderer = require(game.StarterPlayer.StarterPlayerScripts.Client.Gui
 
 local ItemInfo = require(ReplicatedStorage.Shared.ItemInfo)
 local ConfigStyles = require(ReplicatedStorage.Shared.ConfigStyles)
-local RarityColors = require(ReplicatedStorage.Shared.RarityColors)
+local RarityInfo = require(ReplicatedStorage.Shared.RarityInfo)
 
 local e = React.createElement
 
 return function(props)
+	local instance
 
-    local instance
+	if props.itemType == "Bows" then
+		instance = ReplicatedStorage.Assets.Bows[props.bowId]
+	end
 
-    if props.itemType == "Bows" then
-        instance = ReplicatedStorage.Assets.Bows[props.bowId]
-    end
+	local rarity
 
-    local rarity 
+	if props.bowId then
+		rarity = ItemInfo[props.bowId].rarity
+	end
 
-    if props.bowId then
-        rarity = ItemInfo[props.bowId].rarity
-    end
+	local sellStyles = ReactSpring.useSpring({
+		size = if props.isBeingSold then UDim2.new(0.8, 0, 0.8, 0) else UDim2.new(0, 0, 0, 0),
+		rotation = if props.isBeingSold then 0 else -180,
+		config = ConfigStyles.defaultButton,
+	})
 
-    local sellStyles = ReactSpring.useSpring({
-        size = if props.isBeingSold then UDim2.new(0.8, 0, 0.8, 0) else UDim2.new(0, 0, 0, 0),
-        rotation = if props.isBeingSold then 0 else -180,
-        config = ConfigStyles.defaultButton
-    })
+	return e(ItemTemplate, {
+		UIStroke = {
+			Color = RarityInfo[rarity].strokeColor,
+		},
 
-    return e(ItemTemplate, {
-        UIStroke = {
-            Color = RarityColors[rarity].strokeColor,
-        },
+		UIGradient = {
+			Color = RarityInfo[rarity].gradientSequence,
+		},
 
-        UIGradient = {
-            Color = RarityColors[rarity].gradientSequence
-        },
+		Button = {
+			[React.Event.Activated] = function()
+				props.activated()
+			end,
+		},
 
-        Button = {
-            [React.Event.Activated] = function()
-                props.activated()
-            end
-        },
+		[RoactTemplate.Root] = {
+			[RoactCompat.Children] = {
+				ModelRenderer = e(ModelRenderer, {
+					model = instance,
+					size = UDim2.new(1, 0, 1, 0),
+					position = UDim2.new(0.5, 0, 0.5, 0),
+				}),
+			},
 
-        [RoactTemplate.Root] = {
-            [RoactCompat.Children] = {
-                ModelRenderer = e(ModelRenderer, {
-                    model = instance,
-                    size = UDim2.new(1, 0, 1, 0),
-                    position = UDim2.new(0.5, 0, 0.5, 0),
-                })
-            },
+			LayoutOrder = props.layoutOrder,
+		},
 
-            LayoutOrder = props.layoutOrder
-        },
+		Sell = {
+			Size = sellStyles.size,
+			Rotation = sellStyles.rotation,
+		},
 
-        Sell = {
-            Size = sellStyles.size,
-            Rotation = sellStyles.rotation,
-        },
-
-        Count = {
-            Text = "x" .. props.amount
-        }
-    })
+		Count = {
+			Text = "x" .. props.amount,
+		},
+	})
 end

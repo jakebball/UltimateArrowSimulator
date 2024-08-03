@@ -16,8 +16,11 @@ local RangeInfo = require(ReplicatedStorage.Shared.RangeInfo)
 local PlayerUtils = require(ReplicatedStorage.Shared.Utils.PlayerUtils)
 local CameraUtils = require(ReplicatedStorage.Shared.Utils.CameraUtils)
 local NetworkUtils = require(ReplicatedStorage.Shared.Utils.NetworkUtils)
+local RarityInfo = require(ReplicatedStorage.Shared.RarityInfo)
+local GradeInfo = require(ReplicatedStorage.Shared.GradeInfo)
 
 local AnimatedButton = require(script.Parent.Parent.Components.AnimatedButton)
+local ModelRenderer = require(game.StarterPlayer.StarterPlayerScripts.Client.Gui.Components.ModelRenderer)
 
 local ShootingRangeTemplate =
 	RoactTemplate.fromInstance(RoactCompat, ReplicatedStorage.Assets.Gui.Templates.ShootingRange)
@@ -35,6 +38,12 @@ return function(props)
 	local roundEnergy, setEnergy = React.useState(0)
 	local energyProgressGradientRotation, setEnergyProgressGradientRotation = React.useState(0)
 	local specialAbilityKeyCode, setSpecialAbilityKeyCode = React.useState("E")
+	local autoRetry, setAutoRetry = React.useState(false)
+	local autoRetryCountdown, setAutoRetryCountdown = React.useState(1)
+	local rewardModel, setRewardModel = React.useState()
+	local rewardGrade, setRewardGrade = React.useState()
+	local rewardRarity, setRewardRarity = React.useState()
+	local previousCameraFocus, setPreviousCameraFocus = React.useState()
 
 	local rangeStyles = ReactSpring.useSpring({
 		position = UDim2.new(if props.visible then 0.5 else -1.5, 0, 0.5, 0),
@@ -109,6 +118,8 @@ return function(props)
 					setRange(range.Name)
 
 					CameraUtils.setBlur(true, 14)
+
+					setPreviousCameraFocus(workspace.CurrentCamera.Focus)
 
 					workspace.CurrentCamera.CameraType = Enum.CameraType.Scriptable
 					workspace.CurrentCamera.Focus = range.Floor.CFrame
@@ -203,22 +214,24 @@ return function(props)
 			local trove = Trove.new()
 
 			trove:Add(ReplicatedStorage.Bindables.RangeDamaged.Event:Connect(function()
-				local amountOfEnemies = RangeInfo[Players.LocalPlayer:GetAttribute("ActiveRange")].enemySpawnAmount
+				if Players.LocalPlayer:GetAttribute("ActiveRange") then
+					local amountOfEnemies = RangeInfo[Players.LocalPlayer:GetAttribute("ActiveRange")].enemySpawnAmount
 
-				local healthDecreaseIncrement = 100 / amountOfEnemies
+					local healthDecreaseIncrement = 100 / amountOfEnemies
 
-				for _ = 1, 25 do
-					setHealthPositionOffset(
-						Vector2.new(Random.new():NextNumber(-0.02, 0.02), Random.new():NextNumber(-0.02, 0.02))
-					)
-					task.wait()
+					for _ = 1, 25 do
+						setHealthPositionOffset(
+							Vector2.new(Random.new():NextNumber(-0.02, 0.02), Random.new():NextNumber(-0.02, 0.02))
+						)
+						task.wait()
+					end
+
+					setHealthPositionOffset(Vector2.new(0, 0))
+
+					setHealth(function(prev)
+						return prev - healthDecreaseIncrement
+					end)
 				end
-
-				setHealthPositionOffset(Vector2.new(0, 0))
-
-				setHealth(function(prev)
-					return prev - healthDecreaseIncrement
-				end)
 			end))
 
 			trove:Add(Players.LocalPlayer:GetAttributeChangedSignal("ActiveRangeSpecialEnergy"):Connect(function()
@@ -236,8 +249,26 @@ return function(props)
 			return function()
 				trove:Destroy()
 			end
+		elseif stage == "end" then
+			local trove = Trove.new()
+
+			if autoRetry == true then
+				trove:Add(task.spawn(function()
+					for i = 5, 1, -1 do
+						setAutoRetryCountdown(i)
+
+						task.wait(1)
+					end
+
+					setStage("intro")
+				end))
+			end
+
+			return function()
+				trove:Destroy()
+			end
 		end
-	end, { stage, range, countdownApi, healthPositionOffset })
+	end, { stage, range, countdownApi, healthPositionOffset, autoRetry })
 
 	React.useEffect(function()
 		if roundEnergy >= 100 then
@@ -260,6 +291,18 @@ return function(props)
 			setHealthPositionOffset(Vector2.new(0, 0))
 		end
 	end, { roundEnergy })
+
+	React.useEffect(function()
+		NetworkUtils.ConnectPromiseRemoteEvent(props.systems, "SendPlayerReward", function(reward)
+			setRewardModel(ReplicatedStorage.Assets.SimulationTokens[reward.rarity][reward.grade])
+			setRewardRarity(RarityInfo[reward.rarity].displayName)
+			setRewardGrade(GradeInfo[reward.grade].displayName)
+		end)
+
+		return function()
+			NetworkUtils.DisconnectRemoteEvent("SendPlayerReward")
+		end
+	end, {})
 
 	local startStyle
 	local startText
@@ -305,6 +348,14 @@ return function(props)
 
 		EndMenu = {
 			Position = endMenuStyles.position,
+
+			[RoactCompat.Children] = {
+				EndMenuViewport = rewardModel and e(ModelRenderer, {
+					model = rewardModel,
+					position = UDim2.new(0.5, 0, 0.415, 0),
+					size = UDim2.new(0.265, 0, 0.35, 0),
+				}),
+			},
 		},
 
 		EndButtonList = {
@@ -330,7 +381,7 @@ return function(props)
 
 					activated = function()
 						workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
-						--	workspace.CurrentCamera.Focus = Players.LocalPlayer.Character.HumanoidRootPart
+						workspace.CurrentCamera.Focus = previousCameraFocus
 						setRange(nil)
 
 						local humanoid = PlayerUtils.getHumanoidFromPlayer(Players.LocalPlayer)
@@ -349,11 +400,15 @@ return function(props)
 				ToggleAutoRetry = e(AnimatedButton, {
 					size = UDim2.new(0.5, 0, 0.5, 0),
 					position = UDim2.new(0.5, 0, 0.85, 0),
-					style = "confirm",
-					text = "Auto Retry (1)",
+					style = if autoRetry then "cancel" else "confirm",
+					text = if autoRetry then "Cancel Auto Retry (" .. autoRetryCountdown .. ")" else "Use Auto Retry",
 					layoutOrder = 3,
 
-					activated = function() end,
+					activated = function()
+						setAutoRetry(function(prev)
+							return not prev
+						end)
+					end,
 				}),
 			},
 		},
@@ -419,6 +474,14 @@ return function(props)
 
 		SpecialChargeGrey = {
 			Size = extraChargeStyles.size,
+		},
+
+		GradeLabel = {
+			Text = rewardGrade,
+		},
+
+		PullRarityLabel = {
+			Text = rewardRarity,
 		},
 	})
 end

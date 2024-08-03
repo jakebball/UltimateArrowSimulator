@@ -1,9 +1,16 @@
 local NetworkUtils = {}
 
+local eventConnections = {}
+
 function NetworkUtils.ConnectPromiseRemoteEvent(systems, eventName, func)
-	return systems.Network.PromiseGetRemote(eventName):andThen(function(remote)
-		remote.OnClientEvent:Connect(func)
+	systems.Network.PromiseGetRemote(eventName):andThen(function(remote)
+		eventConnections[eventName] = remote.OnClientEvent:Connect(func)
 	end)
+end
+
+function NetworkUtils.DisconnectRemoteEvent(eventName)
+	eventConnections[eventName]:Disconnect()
+	eventConnections[eventName] = nil
 end
 
 function NetworkUtils.ConnectPromiseRemoteFunction(systems, eventName, func)

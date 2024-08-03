@@ -16,7 +16,6 @@ local ItemInfo = require(ReplicatedStorage.Shared.ItemInfo)
 local EnemyInfo = require(ReplicatedStorage.Shared.EnemyInfo)
 local RangeInfo = require(ReplicatedStorage.Shared.RangeInfo)
 
-local enemiesKilled = 0
 local randomObject
 
 function ShootingRange.GenerateEnemyModel(enemyId, enemyType, enemyHealth, laneIndex)
@@ -31,6 +30,11 @@ function ShootingRange.GenerateEnemyModel(enemyId, enemyType, enemyHealth, laneI
 	ShootingRange.LocalPlayer:WaitForChild(enemyId):GetAttributeChangedSignal("health"):Connect(function()
 		if ShootingRange.LocalPlayer[enemyId]:GetAttribute("health") <= 0 then
 			ShootingRange.RunKillEffects(enemyModel)
+
+			ShootingRange.LocalPlayer:SetAttribute(
+				"RangeEnemiesDefeated",
+				ShootingRange.LocalPlayer:GetAttribute("RangeEnemiesDefeated") + 1
+			)
 		end
 	end)
 
@@ -59,10 +63,15 @@ function ShootingRange.CreateEnemy(enemyId, enemyType, enemyHealth, enemySpeed, 
 		enemyModel:Destroy()
 		ReplicatedStorage.Bindables.RangeDamaged:Fire()
 
-		if ShootingRange.LocalPlayer:GetAttribute("ActiveRangeHealth") <= 0 then
+		if
+			ShootingRange.LocalPlayer:GetAttribute("ActiveRangeHealth") == nil
+			or ShootingRange.LocalPlayer:GetAttribute("ActiveRangeHealth") <= 0
+		then
 			ShootingRange.EndShootingRange()
 		end
 	end)
+
+	return timeToReachEnd
 end
 
 function ShootingRange.RunHitEffects(damage, realDamage, enemy, damageRange, energy)
@@ -196,17 +205,13 @@ function ShootingRange.RunKillEffects(enemy)
 		end)
 	end)
 
-	enemiesKilled += 1
-
-	if enemiesKilled >= RangeInfo[ShootingRange.LocalPlayer:GetAttribute("ActiveRange")].enemySpawnAmount then
-		ShootingRange.EndShootingRange()
-	end
-
 	enemy:Destroy()
 end
 
 function ShootingRange.StartShootingRange(range)
 	local rangeInfo = RangeInfo[range]
+
+	local enemyIndex = 1
 
 	repeat
 		task.wait()
@@ -219,6 +224,10 @@ function ShootingRange.StartShootingRange(range)
 	local shootingRangeModel = workspace.ShootingRanges[range]
 
 	local function bindAction(actionName, inputState)
+		if ShootingRange.LocalPlayer:GetAttribute("ActiveLaneRangeIndex") == nil then
+			return
+		end
+
 		if actionName == "ActivateSpecial" and inputState == Enum.UserInputState.Begin then
 			if ShootingRange.LocalPlayer:GetAttribute("ActiveRangeSpecialEnergy") >= 100 then
 				if ShootingRange.LocalPlayer:GetAttribute("SpecialActive") then
@@ -265,18 +274,23 @@ function ShootingRange.StartShootingRange(range)
 
 	randomObject = Random.new(ShootingRange.LocalPlayer:GetAttribute("rangeRandomSeed"))
 
-	for i = 1, rangeInfo.enemySpawnAmount do
-		local randomEnemyTypeIndex = randomObject:NextInteger(1, #ReplicatedStorage.Assets.Enemies[range]:GetChildren())
+	task.spawn(function()
+		while enemyIndex <= rangeInfo.enemySpawnAmount do
+			local randomEnemyTypeIndex =
+				randomObject:NextInteger(1, #ReplicatedStorage.Assets.Enemies[range]:GetChildren())
 
-		local enemyType = "enemyType_" .. randomEnemyTypeIndex
+			local enemyType = "enemyType_" .. randomEnemyTypeIndex
 
-		local info = EnemyInfo[range][enemyType]
-		local enemyHealth = randomObject:NextNumber(info.healthRange[1], info.healthRange[2])
+			local info = EnemyInfo[range][enemyType]
+			local enemyHealth = randomObject:NextNumber(info.healthRange[1], info.healthRange[2])
 
-		ShootingRange.CreateEnemy(i, enemyType, enemyHealth, info.speed, shootingRangeModel)
+			ShootingRange.CreateEnemy(enemyIndex, enemyType, enemyHealth, info.speed, shootingRangeModel)
 
-		task.wait(randomObject:NextNumber(1, 2))
-	end
+			enemyIndex += 1
+
+			task.wait(randomObject:NextNumber(1, 2))
+		end
+	end)
 end
 
 function ShootingRange.EndShootingRange()
@@ -284,7 +298,7 @@ function ShootingRange.EndShootingRange()
 	ContextActionService:UnbindAction("MoveLaneLeft")
 	ContextActionService:UnbindAction("MoveLaneRight")
 
-	enemiesKilled = 0
+	ShootingRange.LocalPlayer:SetAttribute("RangeEnemiesDefeated", 0)
 end
 
 function ShootingRange.Heartbeat()
@@ -323,6 +337,11 @@ function ShootingRange.Heartbeat()
 				ShootingRange.LocalPlayer[enemy.Name]:SetAttribute(
 					"health",
 					ShootingRange.LocalPlayer[enemy.Name]:GetAttribute("health") - realDamage
+				)
+
+				ShootingRange.LocalPlayer:SetAttribute(
+					"ActiveRangeSpecialEnergy",
+					ShootingRange.LocalPlayer:GetAttribute("ActiveRangeSpecialEnergy") + realEnergy
 				)
 
 				NetworkUtils.FirePromiseRemoteEvent(ShootingRange.Systems, "EnemyHit", tonumber(enemy.Name))
