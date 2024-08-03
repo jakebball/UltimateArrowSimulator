@@ -9,14 +9,14 @@ The main repo for the Roblox game Ultimate Arrow Simulator
 [Playerdata](src/server/Systems/Playerdata/init.lua) - loading the playerdata and listening for changes via attributes\
 [Moderation](src/server/Systems/Moderation.lua) - tracking and dealing with exploit reports\ 
 [Network](src/server/Systems/Network.lua) - gets remote events and scramble the names via UUIDs for security\
-[ShootingRange](src/server/Systems/ShootingRange.lua) - transactions and replication of shooting range actions\ 
+[ShootingRange](src/server/Systems/ShootingRange.lua) - transactions and replication of shooting range actions
 
 # Client
 [Gui](src/client/Systems/BowFiring.lua) - mounts and stores the react DOM for React-lua\
 [BowFiring](src/client/Systems/BowFiring.lua) - Stores client side actions for bow firing\
 [Cutscene](src/client/Systems/Cutscene.lua) - cutscene tweens and cleanup\
 [Network](src/client/Systems/Network.lua) -  gets remote events along with associated UUID\
-[ShootingRange](src/client/Systems/ShootingRange.lua) - transactions and rendering of shooting range actions\
+[ShootingRange](src/client/Systems/ShootingRange.lua) - transactions and rendering of shooting range actions
 
 
 ## Project Setup
