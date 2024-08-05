@@ -100,9 +100,9 @@ return function(props)
 					local layoutOrder = 0
 
 					if sortMode == 1 then
-						layoutOrder = -ItemUtils.getItemScore(bowId)
+						layoutOrder = -ItemUtils.GetItemScore(bowId)
 					else
-						layoutOrder = ItemUtils.getItemScore(bowId)
+						layoutOrder = ItemUtils.GetItemScore(bowId)
 					end
 
 					return e(Item, {
@@ -221,7 +221,7 @@ return function(props)
 
 						for bowId, _ in props.playerdata.bows do
 							table.insert(scores, {
-								score = ItemUtils.getItemScore(bowId),
+								score = ItemUtils.GetItemScore(bowId),
 								id = bowId,
 							})
 						end

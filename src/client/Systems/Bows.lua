@@ -5,6 +5,7 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local ModelUtils = require(ReplicatedStorage.Shared.Utils.ModelUtils)
+local AttributeUtils = require(ReplicatedStorage.Shared.Utils.AttributeUtils)
 
 local Bows = {}
 
@@ -24,7 +25,7 @@ function Bows.UpdateBows(player)
 		return
 	end
 
-	local equippedItems = HttpService:JSONDecode(player:GetAttribute("equippedItems"))
+	local equippedItems = AttributeUtils.GetAttribute(player, "equippedItems", {})
 
 	local playerBow = equippedItems.playerBowSlot
 
@@ -45,7 +46,7 @@ function Bows.UpdateBows(player)
 
 	local targetCFrame = CFrame.new()
 
-	local activeRange = player:GetAttribute("ActiveRange")
+	local activeRange = AttributeUtils.GetAttribute(player, "ActiveRange")
 
 	if bowModel then
 		if activeRange == nil then
@@ -54,13 +55,14 @@ function Bows.UpdateBows(player)
 
 			mouse.TargetFilter = workspace.Bows[player.UserId]
 
-			ModelUtils.toggleVisiblity(bowModel, true)
+			ModelUtils.ToggleVisiblity(bowModel, true)
 		else
-			targetCFrame = workspace.ShootingRanges[activeRange].BowLanePositions[Bows.LocalPlayer:GetAttribute(
-				"ActiveLaneRangeIndex"
-			)].CFrame * CFrame.new(0, yOffset / 7, 0)
+			local activeLaneRangeIndex = AttributeUtils.GetAttribute(player, "ActiveLaneRangeIndex", 1)
 
-			ModelUtils.toggleVisiblity(bowModel, false, 0.5)
+			targetCFrame = workspace.ShootingRanges[activeRange].BowLanePositions[activeLaneRangeIndex].CFrame
+				* CFrame.new(0, yOffset / 7, 0)
+
+			ModelUtils.ToggleVisiblity(bowModel, false, 0.5)
 		end
 	end
 
@@ -99,10 +101,14 @@ function Bows.UpdateBows(player)
 		arrow.WorldPivot = arrow.Notch.CFrame
 		arrow.Parent = bowModel
 
+		local distance = bowModel.MiddleNock.Position.Y - bowModel.LowerNock.Position.Y
+
+		AttributeUtils.SetAttribute(bowModel, "middleNockY", -distance)
+
 		local weld = Instance.new("Weld")
 		weld.Part0 = bowModel.MiddleNock
 		weld.Part1 = bowModel.LowerNock
-		weld.C0 = CFrame.new(0, -1.43, 0)
+		weld.C0 = CFrame.new(0, -distance, 0)
 		weld.Parent = bowModel.MiddleNock
 	end
 
@@ -120,11 +126,7 @@ function Bows.UpdateBows(player)
 end
 
 function Bows.FireBow(player)
-	if player:GetAttribute("equippedItems") == nil then
-		return
-	end
-
-	local equippedItems = HttpService:JSONDecode(player:GetAttribute("equippedItems"))
+	local equippedItems = AttributeUtils.GetAttribute(player, "equippedItems", {})
 
 	if workspace.Bows:FindFirstChild(player.UserId) == nil then
 		return
@@ -133,7 +135,7 @@ function Bows.FireBow(player)
 	local bowModel = workspace.Bows[player.UserId]:FindFirstChild(equippedItems.playerBowSlot)
 
 	if bowModel and bowModel:FindFirstChild("MiddleNock") then
-		local specialData = Bows.LocalPlayer:GetAttribute("SpecialActive")
+		local specialData = AttributeUtils.GetAttribute(player, "SpecialActive")
 
 		if specialData then
 			Bows.Systems.BowFiring[specialData](bowModel)
@@ -143,29 +145,27 @@ function Bows.FireBow(player)
 	end
 end
 
-function Bows.FireSpecial(special)
+function Bows.FireSpecial(player, special)
 	if Bows.LocalPlayer:GetAttribute("equippedItems") == nil then
 		return
 	end
 
-	local equippedItems = HttpService:JSONDecode(Bows.LocalPlayer:GetAttribute("equippedItems"))
+	local equippedItems = AttributeUtils.GetAttribute(player, "equippedItems", {})
 
 	local bowModel = workspace.Bows[Bows.LocalPlayer.UserId]:FindFirstChild(equippedItems.playerBowSlot)
 
 	if bowModel then
-		Bows.LocalPlayer:SetAttribute("SpecialInProgress", true)
+		AttributeUtils.SetAttribute(Bows.LocalPlayer, "SpecialInProgress", true)
+
 		Bows.Systems.BowFiring[special](bowModel)
-		Bows.LocalPlayer:SetAttribute("SpecialInProgress", false)
+
+		AttributeUtils.SetAttribute(Bows.LocalPlayer, "SpecialInProgress", false)
 	end
 end
 
 function Bows.Start()
 	RunService.Heartbeat:Connect(function()
 		for _, player in Players:GetPlayers() do
-			if player:GetAttribute("equippedItems") == nil or player:GetAttribute("bows") == nil then
-				continue
-			end
-
 			if workspace.Bows:FindFirstChild(player.UserId) == nil then
 				local bowFolder = Instance.new("Folder")
 				bowFolder.Name = player.UserId
@@ -181,10 +181,10 @@ function Bows.Start()
 			task.wait(0.5)
 
 			if
-				Bows.LocalPlayer:GetAttribute("SpecialInProgress") ~= true
-				and Bows.LocalPlayer:GetAttribute("ActiveRange")
+				AttributeUtils.GetAttribute(Bows.LocalPlayer, "SpecialInProgress") ~= true
+				and AttributeUtils.GetAttribute(Bows.LocalPlayer, "ActiveRange")
 			then
-				Bows.FireBow(Players.LocalPlayer)
+				Bows.FireBow(Bows.LocalPlayer)
 			end
 		end
 	end)

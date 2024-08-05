@@ -46,6 +46,7 @@ local tableAttributes = {
 	"bows",
 	"equippedItems",
 	"simulationTokens",
+	"unlockedRanges",
 }
 
 local function App(props)
@@ -92,7 +93,7 @@ local function App(props)
 
 	React.useEffect(function()
 		if menuState ~= "shootingRange" then
-			CameraUtils.setBlur(table.find(blurredMenus, menuState) ~= nil, 16)
+			CameraUtils.SetBlur(table.find(blurredMenus, menuState) ~= nil, 16)
 		end
 	end, { menuState })
 

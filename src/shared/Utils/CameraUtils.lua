@@ -4,7 +4,7 @@ local TweenService = game:GetService("TweenService")
 
 local tween
 
-function CameraUtils.setBlur(enabled, size)
+function CameraUtils.SetBlur(enabled, size)
 	if workspace.CurrentCamera:FindFirstChild("Blur") == nil then
 		local blur = Instance.new("BlurEffect")
 		blur.Name = "Blur"
@@ -25,7 +25,7 @@ function CameraUtils.setBlur(enabled, size)
 	end
 end
 
-function CameraUtils.shakeCamera(duration, intensity)
+function CameraUtils.ShakeCamera(duration, intensity)
 	task.spawn(function()
 		local elapsedTime = 0
 

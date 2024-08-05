@@ -3,7 +3,11 @@ return {
 		displayName = "Ol' Reliable",
 		description = "This raggedy shooting range may not be the prettiest, but it does it's job",
 		previousRange = "test",
-		enemySpawnAmount = 25,
+		enemyKillRequirement = 50,
+
+		enemies = {
+			[1] = "scarecrow",
+		},
 
 		rewards = {
 			tokenRarityTable = {

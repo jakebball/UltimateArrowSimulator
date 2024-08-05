@@ -1,11 +1,9 @@
-local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Assets = ReplicatedStorage.Assets
-
 local StatCalculationUtils = require(ReplicatedStorage.Shared.Utils.StatCalculationUtils)
 local NumberUtils = require(ReplicatedStorage.Shared.Utils.NumberUtils)
+local AttributeUtils = require(ReplicatedStorage.Shared.Utils.AttributeUtils)
 
 local ItemInfo = require(ReplicatedStorage.Shared.ItemInfo)
 local RangeInfo = require(ReplicatedStorage.Shared.RangeInfo)
@@ -15,38 +13,40 @@ local Trove = require(ReplicatedStorage.Shared.Packages.Trove)
 
 local ShootingRange = {}
 
-local lastEnemyHitTick = {}
 local rangeTroves = {}
 
 local randomObject
 
+function ShootingRange.SetupPlayer(player)
+	local enemyFolder = Instance.new("Folder")
+	enemyFolder.Name = "Enemies"
+	enemyFolder.Parent = player
+end
+
 function ShootingRange.StartShootingRange(player, range)
-	if player:GetAttribute("ActiveRange") then
+	if AttributeUtils.GetAttribute(player, "ActiveRange") then
 		warn("Player is already in a range")
 		return
 	end
 
-	local unlockedRanges = HttpService:JSONDecode(player:GetAttribute("unlockedRanges"))
+	local unlockedRanges = AttributeUtils.GetAttribute(player, "unlockedRanges", {})
 
 	if table.find(unlockedRanges, range) == nil then
 		warn("Player does not own range")
 		return
 	end
 
-	player:SetAttribute("ActiveRange", range)
-	player:SetAttribute("ActiveRangeHealth", 100)
-	player:SetAttribute("ActiveRangeSpecialEnergy", 0)
-	player:SetAttribute("ActiveLaneRangeIndex", 2)
-	player:SetAttribute("RangeEnemiesDefeated", 0)
+	AttributeUtils.SetAttribute(player, "ActiveRange", range)
+	AttributeUtils.SetAttribute(player, "ActiveRangeHealth", 100)
+	AttributeUtils.SetAttribute(player, "ActiveRangeSpecialEnergy", 0)
+	AttributeUtils.SetAttribute(player, "ActiveLaneRangeIndex", 2)
+	AttributeUtils.SetAttribute(player, "RangeEnemiesDefeated", 0)
 
-	lastEnemyHitTick[player.UserId] = {}
+	AttributeUtils.SetAttribute(player, "rangeRandomSeed", math.random(1, 1000))
 
-	player:SetAttribute("rangeRandomSeed", math.random(1, 1000))
+	local amountOfEnemies = RangeInfo[range].enemyKillRequirement
 
-	local amountOfEnemies = RangeInfo[range].enemySpawnAmount
-	local healthDecrement = 100 / amountOfEnemies
-
-	randomObject = Random.new(player:GetAttribute("rangeRandomSeed"))
+	randomObject = Random.new(AttributeUtils.GetAttribute(player, "rangeRandomSeed"))
 
 	local trove = Trove.new()
 
@@ -55,10 +55,11 @@ function ShootingRange.StartShootingRange(player, range)
 	task.spawn(function()
 		local enemyIndex = 1
 
-		while player:GetAttribute("ActiveRange") ~= nil and enemyIndex <= amountOfEnemies do
-			local randomEnemyTypeIndex = randomObject:NextInteger(1, #Assets.Enemies[range]:GetChildren())
+		while AttributeUtils.GetAttribute(player, "ActiveRange") ~= nil and enemyIndex <= amountOfEnemies do
+			local randomEnemyTypeIndex = randomObject:NextInteger(1, #RangeInfo[range].enemies)
 
-			local enemyType = "enemyType_" .. randomEnemyTypeIndex
+			local enemyType = RangeInfo[range].enemies[randomEnemyTypeIndex]
+
 			local info = EnemyInfo[range][enemyType]
 
 			local enemyData = {
@@ -69,19 +70,22 @@ function ShootingRange.StartShootingRange(player, range)
 				speed = info.speed,
 			}
 
+			local healthDecrement = info.damage
+
 			local selectedSpawn = randomObject:NextInteger(1, 3)
 
 			local enemyObject = Instance.new("StringValue")
 			enemyObject.Name = enemyIndex
-			enemyObject:SetAttribute("health", enemyData.health)
-			enemyObject:SetAttribute("damage", enemyData.damage)
-			enemyObject:SetAttribute("lastDamage", enemyData.speed)
-			enemyObject:SetAttribute("energy", enemyData.energy)
-			enemyObject:SetAttribute("type", enemyData.type)
-			enemyObject:SetAttribute("selectedSpawn", selectedSpawn)
-			enemyObject.Parent = player
 
-			lastEnemyHitTick[player.UserId][enemyIndex] = os.clock()
+			trove:Add(enemyObject)
+
+			AttributeUtils.SetAttribute(enemyObject, "health", enemyData.health)
+			AttributeUtils.SetAttribute(enemyObject, "damage", enemyData.damage)
+			AttributeUtils.SetAttribute(enemyObject, "lastDamage", enemyData.speed)
+			AttributeUtils.SetAttribute(enemyObject, "type", enemyData.type)
+			AttributeUtils.SetAttribute(enemyObject, "selectedSpawn", selectedSpawn)
+
+			enemyObject.Parent = player.Enemies
 
 			enemyIndex += 1
 
@@ -89,11 +93,13 @@ function ShootingRange.StartShootingRange(player, range)
 				workspace.ShootingRanges[range].Spawns[1].Position - workspace.ShootingRanges[range].Ends[1].Position
 			).Magnitude / enemyData.speed
 
-			trove:Add(task.delay(timeToReachEnd, function()
-				player:SetAttribute("ActiveRangeHealth", player:GetAttribute("ActiveRangeHealth") - healthDecrement)
+			trove:Add(task.delay(timeToReachEnd + 0.1, function()
+				if AttributeUtils.GetAttribute(enemyObject, "health", 0) > 0 then
+					AttributeUtils.IncrementAttribute(player, "ActiveRangeHealth", -healthDecrement)
 
-				if player:GetAttribute("ActiveRangeHealth") <= 0 then
-					ShootingRange.EndShootingRange(player)
+					if AttributeUtils.GetAttribute(player, "ActiveRangeHealth", 0) <= 0 then
+						ShootingRange.EndShootingRange(player)
+					end
 				end
 			end))
 
@@ -103,96 +109,96 @@ function ShootingRange.StartShootingRange(player, range)
 end
 
 function ShootingRange.EndShootingRange(player)
+	ShootingRange.Systems.Network.GetEvent("ShootingRangeEnded"):FireClient(player)
+
 	local rangeInfo = RangeInfo[player:GetAttribute("ActiveRange")]
 
-	player:SetAttribute("ActiveRange", nil)
-	player:SetAttribute("ActiveRangeHealth", nil)
-	player:SetAttribute("ActiveRangeSpecialEnergy", nil)
-	player:SetAttribute("ActiveLaneRangeIndex", nil)
-	player:SetAttribute("RangeEnemiesDefeated", 0)
-
-	for _, v in player:GetChildren() do
-		if v.ClassName == "StringValue" then
-			v:Destroy()
-		end
-	end
+	AttributeUtils.SetAttribute(player, "ActiveRange", AttributeUtils.Nil)
+	AttributeUtils.SetAttribute(player, "ActiveRangeHealth", AttributeUtils.Nil)
+	AttributeUtils.SetAttribute(player, "ActiveRangeSpecialEnergy", AttributeUtils.Nil)
+	AttributeUtils.SetAttribute(player, "ActiveLaneRangeIndex", AttributeUtils.Nil)
+	AttributeUtils.SetAttribute(player, "RangeEnemiesDefeated", AttributeUtils.Nil)
 
 	rangeTroves[player.UserId]:Destroy()
 
-	local selectedGrade = NumberUtils.getWeightedRandomItem(rangeInfo.rewards.tokenGradeTable)
-	local selectedRarity = NumberUtils.getWeightedRandomItem(rangeInfo.rewards.tokenRarityTable)
+	local selectedGrade = NumberUtils.GetWeightedRandomItem(rangeInfo.rewards.tokenGradeTable)
+	local selectedRarity = NumberUtils.GetWeightedRandomItem(rangeInfo.rewards.tokenRarityTable)
 
-	local simulationTokens = HttpService:JSONDecode(player:GetAttribute("simulationTokens"))
+	local simulationTokens = AttributeUtils.GetAttribute(player, "simulationTokens")
 
-	simulationTokens[selectedRarity][selectedGrade] += 1
+	if simulationTokens then
+		simulationTokens[selectedRarity][selectedGrade] += 1
 
-	player:SetAttribute("simulationTokens", HttpService:JSONEncode(simulationTokens))
+		AttributeUtils.SetAttribute(player, "simulationTokens", simulationTokens)
 
-	ShootingRange.Systems.Network.GetEvent("SendPlayerReward"):FireClient(player, {
-		grade = selectedGrade,
-		rarity = selectedRarity,
-	})
+		ShootingRange.Systems.Network.GetEvent("SendPlayerReward"):FireClient(player, {
+			grade = selectedGrade,
+			rarity = selectedRarity,
+		})
+	end
 end
 
-function ShootingRange.EnemyHit(player, enemyId)
-	if lastEnemyHitTick[player.UserId] == nil then
-		return
+function ShootingRange.EnemyHit(player, enemyId, damage, energy)
+	local enemyObject = player.Enemies[enemyId]
+
+	local equippedItems = AttributeUtils.GetAttribute(player, "equippedItems", {})
+
+	local itemInfo = ItemInfo[equippedItems.playerBowSlot]
+	local enemyInfo =
+		EnemyInfo[AttributeUtils.GetAttribute(player, "ActiveRange")][AttributeUtils.GetAttribute(enemyObject, "type")]
+
+	local withinRange = false
+
+	if
+		damage >= itemInfo.damageRange[1]
+		and damage <= itemInfo.damageRange[2]
+		and energy >= enemyInfo.energyRange[1]
+		and energy <= enemyInfo.energyRange[2]
+	then
+		withinRange = true
 	end
 
-	if lastEnemyHitTick[player.UserId][enemyId] == nil then
+	if not withinRange then
+		print("hit not within range")
 		return
 	end
-
-	local timeSinceLastHit = os.clock() - lastEnemyHitTick[player.UserId][enemyId]
-
-	if timeSinceLastHit < 0.05 then
-		return
-	end
-
-	local enemyObject = player[enemyId]
-
-	lastEnemyHitTick[player.UserId][enemyId] = os.clock()
-
-	local itemInfo = ItemInfo[HttpService:JSONDecode(player:GetAttribute("equippedItems")).playerBowSlot]
-
-	local damage = randomObject:NextInteger(unpack(itemInfo.damageRange))
 
 	local realDamage = StatCalculationUtils.GetTotalDamage(player, damage)
 
-	enemyObject:SetAttribute("health", enemyObject:GetAttribute("health") - realDamage)
-
-	local enemyInfo = EnemyInfo[player:GetAttribute("ActiveRange")][enemyObject:GetAttribute("type")]
-
-	local energy = randomObject:NextInteger(unpack(enemyInfo.energyRange))
+	AttributeUtils.IncrementAttribute(enemyObject, "health", -realDamage)
 
 	local realEnergy = StatCalculationUtils.GetTotalEnergy(player, energy)
 
-	player:SetAttribute(
+	local currentSpecialEnergy = AttributeUtils.GetAttribute(player, "ActiveRangeSpecialEnergy", 0)
+
+	AttributeUtils.SetAttribute(
+		player,
 		"ActiveRangeSpecialEnergy",
-		math.clamp(player:GetAttribute("ActiveRangeSpecialEnergy") + realEnergy, 0, 300)
+		math.clamp(currentSpecialEnergy + realEnergy, 0, 300)
 	)
 
-	if enemyObject:GetAttribute("health") <= 0 then
-		local enemiesDefeated = player:GetAttribute("RangeEnemiesDefeated") or 0
+	if AttributeUtils.GetAttribute(enemyObject, "health") <= 0 then
+		AttributeUtils.IncrementAttribute(player, "RangeEnemiesDefeated", 1)
 
-		enemiesDefeated = enemiesDefeated + 1
-
-		if enemiesDefeated == RangeInfo[player:GetAttribute("ActiveRange")].enemySpawnAmount then
+		if
+			AttributeUtils.GetAttribute(player, "RangeEnemiesDefeated", 0)
+			== RangeInfo[AttributeUtils.GetAttribute(player, "ActiveRange")].enemyKillRequirement
+		then
 			ShootingRange.EndShootingRange(player)
 		end
-
-		player:SetAttribute("RangeEnemiesDefeated", enemiesDefeated)
 	end
 end
 
 function ShootingRange.SpecialUsed(player)
-	player:SetAttribute("ActiveRangeSpecialEnergy", player:GetAttribute("ActiveRangeSpecialEnergy") - 100)
+	AttributeUtils.IncrementAttribute(player, "ActiveRangeSpecialEnergy", -100)
 end
 
 function ShootingRange.Start()
 	ShootingRange.Systems.Network.GetEvent("StartShootingRange").OnServerEvent:Connect(ShootingRange.StartShootingRange)
 	ShootingRange.Systems.Network.GetEvent("EnemyHit").OnServerEvent:Connect(ShootingRange.EnemyHit)
 	ShootingRange.Systems.Network.GetEvent("SpecialUsed").OnServerEvent:Connect(ShootingRange.SpecialUsed)
+
+	Players.PlayerAdded:Connect(ShootingRange.SetupPlayer)
 end
 
 return ShootingRange

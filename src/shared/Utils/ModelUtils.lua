@@ -2,7 +2,7 @@ local ModelUtils = {}
 
 local modelInvisiblity = {}
 
-function ModelUtils.toggleVisiblity(model, state, customInvisibleTransparency)
+function ModelUtils.ToggleVisiblity(model, state, customInvisibleTransparency)
 	if modelInvisiblity[model] == nil then
 		modelInvisiblity[model] = true
 

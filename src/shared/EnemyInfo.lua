@@ -1,11 +1,11 @@
 return {
 	olreliable = {
-		enemyType_1 = {
+		scarecrow = {
 			healthRange = { 60, 70 },
-			damage = 25,
-			speed = 5,
-			displayName = "Enemy 1",
-			energyRange = { 25, 5 },
+			speed = 10,
+			damage = 34,
+			displayName = "scarecrow",
+			energyRange = { 5, 10 },
 		},
 	},
 }

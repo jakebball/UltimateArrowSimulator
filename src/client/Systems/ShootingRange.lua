@@ -1,7 +1,7 @@
 local ShootingRange = {}
 
 local CollectionService = game:GetService("CollectionService")
-local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -11,43 +11,48 @@ local UserInputService = game:GetService("UserInputService")
 local NetworkUtils = require(ReplicatedStorage.Shared.Utils.NetworkUtils)
 local NumberUtils = require(ReplicatedStorage.Shared.Utils.NumberUtils)
 local StatCalculationUtils = require(ReplicatedStorage.Shared.Utils.StatCalculationUtils)
+local AttributeUtils = require(ReplicatedStorage.Shared.Utils.AttributeUtils)
 
 local ItemInfo = require(ReplicatedStorage.Shared.ItemInfo)
 local EnemyInfo = require(ReplicatedStorage.Shared.EnemyInfo)
 local RangeInfo = require(ReplicatedStorage.Shared.RangeInfo)
 
-local randomObject
+local Trove = require(ReplicatedStorage.Shared.Packages.Trove)
+
+local roundTrove = Trove.new()
 
 function ShootingRange.GenerateEnemyModel(enemyId, enemyType, enemyHealth, laneIndex)
-	local enemyModel =
-		ReplicatedStorage.Assets.Enemies[ShootingRange.LocalPlayer:GetAttribute("ActiveRange")][enemyType]:Clone()
+	local activeRange = AttributeUtils.GetAttribute(ShootingRange.LocalPlayer, "ActiveRange", "olreliable")
+
+	local enemyModel = ReplicatedStorage.Assets.Enemies[activeRange][enemyType]:Clone()
 	enemyModel.Name = enemyId
-	enemyModel:SetAttribute("type", enemyType)
-	enemyModel:SetAttribute("health", enemyHealth)
-	enemyModel:SetAttribute("laneIndex", laneIndex)
+	AttributeUtils.SetAttribute(enemyModel, "type", enemyType)
+	AttributeUtils.SetAttribute(enemyModel, "health", enemyHealth)
+	AttributeUtils.SetAttribute(enemyModel, "laneIndex", laneIndex)
 	enemyModel:AddTag("Enemy")
 
-	ShootingRange.LocalPlayer:WaitForChild(enemyId):GetAttributeChangedSignal("health"):Connect(function()
-		if ShootingRange.LocalPlayer[enemyId]:GetAttribute("health") <= 0 then
-			ShootingRange.RunKillEffects(enemyModel)
+	roundTrove:Add(enemyModel)
 
-			ShootingRange.LocalPlayer:SetAttribute(
-				"RangeEnemiesDefeated",
-				ShootingRange.LocalPlayer:GetAttribute("RangeEnemiesDefeated") + 1
-			)
-		end
-	end)
+	local enemyObject = ShootingRange.LocalPlayer.Enemies[enemyId]
+
+	if enemyObject then
+		AttributeUtils.AttributeChanged(enemyObject, "health", function(health)
+			if health <= 0 then
+				ShootingRange.RunKillEffects(enemyModel)
+			end
+		end)
+	end
 
 	enemyModel.Parent = workspace
 
 	return enemyModel
 end
 
-function ShootingRange.CreateEnemy(enemyId, enemyType, enemyHealth, enemySpeed, shootingRangeModel)
-	local selectedSpawn = randomObject:NextInteger(1, #shootingRangeModel.Spawns:GetChildren())
-
+function ShootingRange.CreateEnemy(enemyId, enemyType, enemyHealth, enemySpeed, shootingRangeModel, selectedSpawn)
 	local enemyModel = ShootingRange.GenerateEnemyModel(enemyId, enemyType, enemyHealth, selectedSpawn)
 	enemyModel.TrackAlignPoint.CFrame = shootingRangeModel.Spawns[selectedSpawn].CFrame
+
+	roundTrove:Add(enemyModel)
 
 	local timeToReachEnd = (
 		shootingRangeModel.Spawns[selectedSpawn].Position - shootingRangeModel.Ends[selectedSpawn].Position
@@ -61,17 +66,13 @@ function ShootingRange.CreateEnemy(enemyId, enemyType, enemyHealth, enemySpeed, 
 	tween:Play()
 	tween.Completed:Connect(function()
 		enemyModel:Destroy()
-		ReplicatedStorage.Bindables.RangeDamaged:Fire()
 
-		if
-			ShootingRange.LocalPlayer:GetAttribute("ActiveRangeHealth") == nil
-			or ShootingRange.LocalPlayer:GetAttribute("ActiveRangeHealth") <= 0
-		then
-			ShootingRange.EndShootingRange()
-		end
+		local damage = EnemyInfo[shootingRangeModel.Name][enemyType].damage
+
+		ReplicatedStorage.Bindables.RangeDamaged:Fire(damage)
 	end)
 
-	return timeToReachEnd
+	return selectedSpawn
 end
 
 function ShootingRange.RunHitEffects(damage, realDamage, enemy, damageRange, energy)
@@ -89,7 +90,7 @@ function ShootingRange.RunHitEffects(damage, realDamage, enemy, damageRange, ene
 			hitMarker.Text = NumberUtils.Abbreviate(realDamage)
 			hitMarker.Rotation = markerRotation
 			hitMarker.Position = UDim2.new(0.5, 0, 0, 0)
-			hitMarker.Parent = enemy.HitMarkers
+			hitMarker.Parent = enemy.TrackAlignPoint.HitMarkers
 
 			TweenService:Create(hitMarker, TweenInfo.new(0.15, Enum.EasingStyle.Sine), {
 				Size = UDim2.new(1.5, 0, 1.5, 0),
@@ -115,7 +116,7 @@ function ShootingRange.RunHitEffects(damage, realDamage, enemy, damageRange, ene
 			hitMarker.Text = NumberUtils.Abbreviate(realDamage)
 			hitMarker.Rotation = markerRotation
 			hitMarker.Position = UDim2.new(0.5, 0, 0, 0)
-			hitMarker.Parent = enemy.HitMarkers
+			hitMarker.Parent = enemy.TrackAlignPoint.HitMarkers
 
 			local markerTween = TweenService:Create(hitMarker, TweenInfo.new(animLength), {
 				Rotation = markerRotation + 5,
@@ -137,7 +138,7 @@ function ShootingRange.RunHitEffects(damage, realDamage, enemy, damageRange, ene
 		local energyMarker = ReplicatedStorage.Assets.Gui.EnergyHitMarker:Clone()
 		energyMarker.Text = "+" .. NumberUtils.Abbreviate(energy)
 		energyMarker.Position = UDim2.new(0.5, 0, 0.5, 0)
-		energyMarker.Parent = enemy.HitMarkers
+		energyMarker.Parent = enemy.TrackAlignPoint.HitMarkers
 
 		local energyTween = TweenService:Create(energyMarker, TweenInfo.new(animLength), {
 			Position = UDim2.new(0.5, 0, 0.6, 0),
@@ -173,11 +174,6 @@ function ShootingRange.RunHitEffects(damage, realDamage, enemy, damageRange, ene
 
 		hitHighlight:Destroy()
 	end)
-
-	local equippedBow = HttpService:JSONDecode(ShootingRange.LocalPlayer:GetAttribute("equippedItems")).playerBowSlot
-
-	local arrowModel = ReplicatedStorage.Assets.Arrows[equippedBow]:Clone()
-	arrowModel.Parent = enemy
 end
 
 function ShootingRange.RunKillEffects(enemy)
@@ -185,9 +181,10 @@ function ShootingRange.RunKillEffects(enemy)
 		return
 	end
 
+	local activeRange = AttributeUtils.GetAttribute(ShootingRange.LocalPlayer, "ActiveRange", "olreliable")
+
 	local enemyDefeated = ReplicatedStorage.Assets.Gui.EnemyDefeated:Clone()
-	enemyDefeated.Text = EnemyInfo[ShootingRange.LocalPlayer:GetAttribute("ActiveRange")][enemy:GetAttribute("type")].displayName
-		.. " Defeated!"
+	enemyDefeated.Text = EnemyInfo[activeRange][AttributeUtils.GetAttribute(enemy, "type")].displayName .. " Defeated!"
 	enemyDefeated.Position = UDim2.new(0.5, 0, -0.5, 0)
 	enemyDefeated.Parent = ShootingRange.LocalPlayer.PlayerGui.ShootingRange.Main
 
@@ -209,14 +206,10 @@ function ShootingRange.RunKillEffects(enemy)
 end
 
 function ShootingRange.StartShootingRange(range)
-	local rangeInfo = RangeInfo[range]
-
-	local enemyIndex = 1
-
-	repeat
-		task.wait()
-	until ShootingRange.LocalPlayer:GetAttribute("rangeRandomSeed")
-
+	--[[
+	unique case where I cant use attribute utils
+	will fix later
+	]]
 	repeat
 		task.wait()
 	until ShootingRange.LocalPlayer:GetAttribute("ActiveRange")
@@ -224,34 +217,29 @@ function ShootingRange.StartShootingRange(range)
 	local shootingRangeModel = workspace.ShootingRanges[range]
 
 	local function bindAction(actionName, inputState)
-		if ShootingRange.LocalPlayer:GetAttribute("ActiveLaneRangeIndex") == nil then
-			return
-		end
+		local activeLaneRangeIndex = AttributeUtils.GetAttribute(ShootingRange.LocalPlayer, "ActiveLaneRangeIndex", 1)
 
 		if actionName == "ActivateSpecial" and inputState == Enum.UserInputState.Begin then
-			if ShootingRange.LocalPlayer:GetAttribute("ActiveRangeSpecialEnergy") >= 100 then
+			if AttributeUtils.GetAttribute(ShootingRange.LocalPlayer, "ActiveRangeSpecialEnergy", 0) >= 100 then
+				if AttributeUtils.GetAttribute(ShootingRange.LocalPlayer, "SpecialActive") then
+					AttributeUtils.SetAttribute(ShootingRange.LocalPlayer, "SpecialActive", AttributeUtils.Nil)
+				end
+
 				if ShootingRange.LocalPlayer:GetAttribute("SpecialActive") then
-					ShootingRange.LocalPlayer:SetAttribute("SpecialActive", nil)
+					ShootingRange.LocalPlayer:SetAttribute("SpecialActive", AttributeUtils.Nil)
 				else
-					ShootingRange.LocalPlayer:SetAttribute(
-						"ActiveRangeSpecialEnergy",
-						ShootingRange.LocalPlayer:GetAttribute("ActiveRangeSpecialEnergy") - 100
-					)
+					AttributeUtils.IncrementAttribute(ShootingRange.LocalPlayer, "ActiveRangeSpecialEnergy", -100)
 
 					ShootingRange.Systems.Bows.FireSpecial(ShootingRange.LocalPlayer:GetAttribute("equippedSpecial"))
 				end
 			end
 		elseif actionName == "MoveLaneLeft" and inputState == Enum.UserInputState.Begin then
-			local currentLaneIndex = ShootingRange.LocalPlayer:GetAttribute("ActiveLaneRangeIndex")
-
-			if currentLaneIndex > 1 then
-				ShootingRange.LocalPlayer:SetAttribute("ActiveLaneRangeIndex", currentLaneIndex - 1)
+			if activeLaneRangeIndex > 1 then
+				AttributeUtils.SetAttribute(ShootingRange.LocalPlayer, "ActiveLaneRangeIndex", activeLaneRangeIndex - 1)
 			end
 		elseif actionName == "MoveLaneRight" and inputState == Enum.UserInputState.Begin then
-			local currentLaneIndex = ShootingRange.LocalPlayer:GetAttribute("ActiveLaneRangeIndex")
-
-			if currentLaneIndex < #shootingRangeModel.Spawns:GetChildren() then
-				ShootingRange.LocalPlayer:SetAttribute("ActiveLaneRangeIndex", currentLaneIndex + 1)
+			if activeLaneRangeIndex < #shootingRangeModel.Spawns:GetChildren() then
+				AttributeUtils.SetAttribute(ShootingRange.LocalPlayer, "ActiveLaneRangeIndex", activeLaneRangeIndex + 1)
 			end
 		end
 	end
@@ -262,34 +250,48 @@ function ShootingRange.StartShootingRange(range)
 
 	local mouse = ShootingRange.LocalPlayer:GetMouse()
 
-	UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+	roundTrove:Add(UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
 		if not gameProcessedEvent then
 			if input.UserInputType == Enum.UserInputType.MouseButton1 then
 				if mouse.Target.Parent.Name == "LaneClick" then
-					ShootingRange.LocalPlayer:SetAttribute("ActiveLaneRangeIndex", mouse.Target.Name)
+					AttributeUtils.SetAttribute(
+						ShootingRange.LocalPlayer,
+						"ActiveLaneRangeIndex",
+						tonumber(mouse.Target.Name)
+					)
 				end
 			end
 		end
+	end))
+
+	for _, enemy in ShootingRange.LocalPlayer.Enemies:GetChildren() do
+		local enemyType = AttributeUtils.GetAttribute(enemy, "type")
+		local enemyHealth = AttributeUtils.GetAttribute(enemy, "health")
+		local enemyIndex = enemy.Name
+		local selectedSpawn = AttributeUtils.GetAttribute(enemy, "selectedSpawn")
+
+		local info = EnemyInfo[range][enemyType]
+
+		ShootingRange.CreateEnemy(enemyIndex, enemyType, enemyHealth, info.speed, shootingRangeModel, selectedSpawn)
+	end
+
+	roundTrove:Add(ShootingRange.LocalPlayer.Enemies.ChildAdded:Connect(function(enemy)
+		local enemyType = AttributeUtils.GetAttribute(enemy, "type")
+		local enemyHealth = AttributeUtils.GetAttribute(enemy, "health")
+		local enemyIndex = enemy.Name
+		local selectedSpawn = AttributeUtils.GetAttribute(enemy, "selectedSpawn")
+
+		local info = EnemyInfo[range][enemyType]
+
+		ShootingRange.CreateEnemy(enemyIndex, enemyType, enemyHealth, info.speed, shootingRangeModel, selectedSpawn)
+	end))
+
+	NetworkUtils.ConnectPromiseRemoteEvent(ShootingRange.Systems, "ShootingRangeEnded", function()
+		ShootingRange.EndShootingRange()
 	end)
 
-	randomObject = Random.new(ShootingRange.LocalPlayer:GetAttribute("rangeRandomSeed"))
-
-	task.spawn(function()
-		while enemyIndex <= rangeInfo.enemySpawnAmount do
-			local randomEnemyTypeIndex =
-				randomObject:NextInteger(1, #ReplicatedStorage.Assets.Enemies[range]:GetChildren())
-
-			local enemyType = "enemyType_" .. randomEnemyTypeIndex
-
-			local info = EnemyInfo[range][enemyType]
-			local enemyHealth = randomObject:NextNumber(info.healthRange[1], info.healthRange[2])
-
-			ShootingRange.CreateEnemy(enemyIndex, enemyType, enemyHealth, info.speed, shootingRangeModel)
-
-			enemyIndex += 1
-
-			task.wait(randomObject:NextNumber(1, 2))
-		end
+	roundTrove:Add(function()
+		NetworkUtils.DisconnectRemoteEvent("ShootingRangeEnded")
 	end)
 end
 
@@ -298,53 +300,72 @@ function ShootingRange.EndShootingRange()
 	ContextActionService:UnbindAction("MoveLaneLeft")
 	ContextActionService:UnbindAction("MoveLaneRight")
 
-	ShootingRange.LocalPlayer:SetAttribute("RangeEnemiesDefeated", 0)
+	for _, arrow in CollectionService:GetTagged("Arrow") do
+		arrow.Parent:Destroy()
+	end
+
+	roundTrove:Clean()
 end
 
 function ShootingRange.Heartbeat()
-	for _, enemy in CollectionService:GetTagged("Enemy") do
-		local overlapParams = OverlapParams.new()
-		overlapParams.FilterDescendantsInstances = { CollectionService:GetTagged("Arrow") }
-		overlapParams.FilterType = Enum.RaycastFilterType.Include
+	if AttributeUtils.GetAttribute(Players.LocalPlayer, "ActiveRange") then
+		for _, enemy in CollectionService:GetTagged("Enemy") do
+			local overlapParams = OverlapParams.new()
+			overlapParams.FilterDescendantsInstances = { CollectionService:GetTagged("Arrow") }
+			overlapParams.FilterType = Enum.RaycastFilterType.Include
 
-		local results = workspace:GetPartBoundsInBox(enemy.Hitbox.CFrame, enemy.Hitbox.Size, overlapParams)
+			local results = workspace:GetPartBoundsInBox(enemy.Hitbox.CFrame, enemy.Hitbox.Size, overlapParams)
 
-		if #results >= 1 then
-			for _, arrow in results do
-				arrow.Parent:Destroy()
+			if #results >= 1 then
+				for _, arrowChild in results do
+					local arrow = arrowChild.Parent
+					arrow.Hitbox:RemoveTag("Arrow")
+					arrow.Parent = enemy
 
-				ReplicatedStorage.Assets.Sounds.ShootingRange.EnemyHit:Play()
+					local arrowHitIndex = AttributeUtils.GetAttribute(enemy, "ArrowHitIndex", 1)
 
-				local itemInfo = ItemInfo[HttpService:JSONDecode(
-					ShootingRange.LocalPlayer:GetAttribute("equippedItems")
-				).playerBowSlot]
+					local weld = Instance.new("WeldConstraint")
+					weld.Part0 = arrow.Notch
+					weld.Part1 = enemy.Hitbox
+					weld.Parent = arrow.Notch
 
-				local enemyInfo =
-					EnemyInfo[ShootingRange.LocalPlayer:GetAttribute("ActiveRange") or "olreliable"][enemy:GetAttribute(
-						"type"
-					) or "enemyType_1"]
+					ReplicatedStorage.Assets.Sounds.ShootingRange.EnemyHit:Play()
 
-				local damage = randomObject:NextInteger(unpack(itemInfo.damageRange))
+					local equippedItems = AttributeUtils.GetAttribute(ShootingRange.LocalPlayer, "equippedItems")
 
-				local realDamage = StatCalculationUtils.GetTotalDamage(ShootingRange.LocalPlayer, damage)
+					local itemInfo = ItemInfo[equippedItems.playerBowSlot]
 
-				local energy = randomObject:NextInteger(unpack(enemyInfo.energyRange))
+					local activeRange =
+						AttributeUtils.GetAttribute(ShootingRange.LocalPlayer, "ActiveRange", "olreliable")
 
-				local realEnergy = StatCalculationUtils.GetTotalEnergy(ShootingRange.LocalPlayer, energy)
+					local enemyInfo = EnemyInfo[activeRange][AttributeUtils.GetAttribute(enemy, "type")]
 
-				ShootingRange.RunHitEffects(damage, realDamage, enemy, itemInfo.damageRange, realEnergy)
+					local damage = Random.new():NextInteger(unpack(itemInfo.damageRange))
 
-				ShootingRange.LocalPlayer[enemy.Name]:SetAttribute(
-					"health",
-					ShootingRange.LocalPlayer[enemy.Name]:GetAttribute("health") - realDamage
-				)
+					local realDamage = StatCalculationUtils.GetTotalDamage(ShootingRange.LocalPlayer, damage)
 
-				ShootingRange.LocalPlayer:SetAttribute(
-					"ActiveRangeSpecialEnergy",
-					ShootingRange.LocalPlayer:GetAttribute("ActiveRangeSpecialEnergy") + realEnergy
-				)
+					local energy = Random.new():NextInteger(unpack(enemyInfo.energyRange))
 
-				NetworkUtils.FirePromiseRemoteEvent(ShootingRange.Systems, "EnemyHit", tonumber(enemy.Name))
+					local realEnergy = StatCalculationUtils.GetTotalEnergy(ShootingRange.LocalPlayer, energy)
+
+					ShootingRange.RunHitEffects(damage, realDamage, enemy, itemInfo.damageRange, realEnergy)
+
+					AttributeUtils.IncrementAttribute(
+						ShootingRange.LocalPlayer.Enemies[enemy.Name],
+						"health",
+						-realDamage
+					)
+
+					AttributeUtils.IncrementAttribute(ShootingRange.LocalPlayer, "ActiveRangeSpecialEnergy", realEnergy)
+
+					NetworkUtils.FirePromiseRemoteEvent(
+						ShootingRange.Systems,
+						"EnemyHit",
+						tonumber(enemy.Name),
+						damage,
+						energy
+					)
+				end
 			end
 		end
 	end

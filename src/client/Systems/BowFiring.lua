@@ -2,6 +2,7 @@ local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ModelUtils = require(ReplicatedStorage.Shared.Utils.ModelUtils)
+local AttributeUtils = require(ReplicatedStorage.Shared.Utils.AttributeUtils)
 
 local BowFiring = {}
 
@@ -11,11 +12,11 @@ function BowFiring.DefaultFire(bowModel, specialData)
 	local tween = TweenService:Create(
 		bowModel.MiddleNock.Weld,
 		TweenInfo.new(
-			specialData.drawbackTime or bowModel:GetAttribute("drawbackTime"),
+			specialData.drawbackTime or AttributeUtils.GetAttribute(bowModel, "drawbackTime", 0.3),
 			Enum.EasingStyle.Exponential,
 			Enum.EasingDirection.Out
 		),
-		{ C0 = CFrame.new(0, -1.43, 1) }
+		{ C0 = CFrame.new(0, AttributeUtils.GetAttribute(bowModel, "middleNockY", -1), -1) }
 	)
 	tween:Play()
 	tween.Completed:Wait()
@@ -25,14 +26,14 @@ function BowFiring.DefaultFire(bowModel, specialData)
 	local fireTween = TweenService:Create(
 		bowModel.MiddleNock.Weld,
 		TweenInfo.new(0.15, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out),
-		{ C0 = CFrame.new(0, -1.43, 0) }
+		{ C0 = CFrame.new(0, AttributeUtils.GetAttribute(bowModel, "middleNockY", -1), 0) }
 	)
 	fireTween:Play()
 
 	local arrow = bowModel.Arrow:Clone()
 	arrow.Parent = workspace
 
-	local targetCFrame = arrow:GetPivot() * CFrame.new(0, 0, 60)
+	local targetCFrame = arrow:GetPivot() * CFrame.new(0, 0, -60)
 
 	local t = (targetCFrame.Position - arrow:GetPivot().Position).Magnitude / 140
 
@@ -43,14 +44,16 @@ function BowFiring.DefaultFire(bowModel, specialData)
 	arrow.Hitbox:AddTag("Arrow")
 
 	fireTweenArrow.Completed:Connect(function()
-		arrow:Destroy()
+		if arrow:FindFirstChild("Hitbox") and arrow.Hitbox:HasTag("Arrow") then
+			arrow:Destroy()
+		end
 	end)
 
-	ModelUtils.toggleVisiblity(bowModel.Arrow, false)
+	ModelUtils.ToggleVisiblity(bowModel.Arrow, false)
 
-	task.wait(specialData.reloadTime or bowModel:GetAttribute("reloadTime"))
+	task.wait(specialData.reloadTime or AttributeUtils.GetAttribute(bowModel, "reloadTime", 0.5))
 
-	ModelUtils.toggleVisiblity(bowModel.Arrow, true)
+	ModelUtils.ToggleVisiblity(bowModel.Arrow, true)
 end
 
 function BowFiring.rapidFire(bowModel)

@@ -16,6 +16,7 @@ local RangeInfo = require(ReplicatedStorage.Shared.RangeInfo)
 local PlayerUtils = require(ReplicatedStorage.Shared.Utils.PlayerUtils)
 local CameraUtils = require(ReplicatedStorage.Shared.Utils.CameraUtils)
 local NetworkUtils = require(ReplicatedStorage.Shared.Utils.NetworkUtils)
+local AttributeUtils = require(ReplicatedStorage.Shared.Utils.AttributeUtils)
 local RarityInfo = require(ReplicatedStorage.Shared.RarityInfo)
 local GradeInfo = require(ReplicatedStorage.Shared.GradeInfo)
 
@@ -118,7 +119,7 @@ return function(props)
 
 					setRange(range.Name)
 
-					CameraUtils.setBlur(true, 14)
+					CameraUtils.SetBlur(true, 14)
 
 					setPreviousCameraFocus(workspace.CurrentCamera.Focus)
 
@@ -131,13 +132,13 @@ return function(props)
 					camTween:Play()
 					camTween.Completed:Wait()
 
-					local humanoid = PlayerUtils.getHumanoidFromPlayer(Players.LocalPlayer)
+					local humanoid = PlayerUtils.GetHumanoidFromPlayer(Players.LocalPlayer)
 
 					if humanoid then
 						humanoid.WalkSpeed = 0
 						humanoid.JumpHeight = 0
 
-						PlayerUtils.togglePlayersVisible(false)
+						PlayerUtils.TogglePlayersVisible(false)
 					end
 				end)
 
@@ -155,7 +156,7 @@ return function(props)
 	React.useEffect(function()
 		if stage == "intro" then
 			task.spawn(function()
-				CameraUtils.setBlur(false)
+				CameraUtils.SetBlur(false)
 
 				sounds.ShootingRange.IntroTheme:Play()
 
@@ -212,16 +213,14 @@ return function(props)
 				}, true)
 			end)
 		elseif stage == "running" then
-			CameraUtils.setBlur(false)
+			CameraUtils.SetBlur(false)
 
 			local trove = Trove.new()
 
-			trove:Add(ReplicatedStorage.Bindables.RangeDamaged.Event:Connect(function()
-				if Players.LocalPlayer:GetAttribute("ActiveRange") then
-					local amountOfEnemies = RangeInfo[Players.LocalPlayer:GetAttribute("ActiveRange")].enemySpawnAmount
+			trove:Add(ReplicatedStorage.Bindables.RangeDamaged.Event:Connect(function(damage)
+				local activeRange = AttributeUtils.GetAttribute(Players.LocalPlayer, "ActiveRange")
 
-					local healthDecreaseIncrement = 100 / amountOfEnemies
-
+				if activeRange then
 					for _ = 1, 25 do
 						setHealthPositionOffset(
 							Vector2.new(Random.new():NextNumber(-0.02, 0.02), Random.new():NextNumber(-0.02, 0.02))
@@ -232,17 +231,17 @@ return function(props)
 					setHealthPositionOffset(Vector2.new(0, 0))
 
 					setHealth(function(prev)
-						return prev - healthDecreaseIncrement
+						return prev - damage
 					end)
 				end
 			end))
 
-			trove:Add(Players.LocalPlayer:GetAttributeChangedSignal("ActiveRangeSpecialEnergy"):Connect(function()
-				setEnergy(Players.LocalPlayer:GetAttribute("ActiveRangeSpecialEnergy") or 0)
+			trove:Add(AttributeUtils.AttributeChanged(Players.LocalPlayer, "ActiveRangeSpecialEnergy", function(energy)
+				setEnergy(energy or 0)
 			end))
 
-			trove:Add(Players.LocalPlayer:GetAttributeChangedSignal("ActiveRange"):Connect(function()
-				if Players.LocalPlayer:GetAttribute("ActiveRange") == nil then
+			trove:Add(AttributeUtils.AttributeChanged(Players.LocalPlayer, "ActiveRange", function(newRange)
+				if newRange == nil then
 					task.wait(1)
 
 					setStage("end")
@@ -253,7 +252,9 @@ return function(props)
 				trove:Destroy()
 			end
 		elseif stage == "end" then
-			CameraUtils.setBlur(true, 14)
+			CameraUtils.SetBlur(true, 14)
+
+			setHealth(100)
 
 			local trove = Trove.new()
 
@@ -359,16 +360,16 @@ return function(props)
 
 						setRange(nil)
 
-						local humanoid = PlayerUtils.getHumanoidFromPlayer(Players.LocalPlayer)
+						local humanoid = PlayerUtils.GetHumanoidFromPlayer(Players.LocalPlayer)
 
 						if humanoid then
 							humanoid.WalkSpeed = 16
 							humanoid.JumpHeight = 30
 
-							PlayerUtils.togglePlayersVisible(true)
+							PlayerUtils.TogglePlayersVisible(true)
 						end
 
-						CameraUtils.setBlur(false)
+						CameraUtils.SetBlur(false)
 
 						props.setMenuState("gameplay")
 					end,
@@ -415,16 +416,16 @@ return function(props)
 
 						setRange(nil)
 
-						local humanoid = PlayerUtils.getHumanoidFromPlayer(Players.LocalPlayer)
+						local humanoid = PlayerUtils.GetHumanoidFromPlayer(Players.LocalPlayer)
 
 						if humanoid then
 							humanoid.WalkSpeed = 16
 							humanoid.JumpHeight = 30
 
-							PlayerUtils.togglePlayersVisible(true)
+							PlayerUtils.TogglePlayersVisible(true)
 						end
 
-						CameraUtils.setBlur(false)
+						CameraUtils.SetBlur(false)
 
 						props.setMenuState("gameplay")
 					end,

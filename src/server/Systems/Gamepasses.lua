@@ -1,5 +1,9 @@
-local Players = game:GetService("Players")
 local Gamepasses = {}
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local AttributeUtils = require(ReplicatedStorage.Shared.Utils.AttributeUtils)
 
 local GAMEPASS_ID_TO_ROBLOX_ID = {}
 
@@ -11,7 +15,7 @@ function Gamepasses.updateGamepassAttributes(player)
 	for gamepassId, assetId in GAMEPASS_ID_TO_ROBLOX_ID do
 		local ownsGamepass = Gamepasses.playerOwnsGamepass(assetId)
 
-		player:SetAttribute("OwnsGamepass" .. gamepassId, ownsGamepass)
+		AttributeUtils.SetAttribute(player, "ownsGamepass" .. gamepassId, ownsGamepass)
 	end
 end
 

@@ -12,130 +12,128 @@ local MusicPlayerTemplate = RoactTemplate.fromInstance(RoactCompat, ReplicatedSt
 local e = React.createElement
 
 return function(props)
+	local songInfo, setSongInfo = React.useState({
+		AlbumName = "Album Name",
+		SongName = "Song Name",
+	})
 
-    local songInfo, setSongInfo = React.useState({
-        AlbumName = "Album Name",
-        SongName = "Song Name"
-    })
+	local styles, api = ReactSpring.useSpring(function()
+		return {
+			position = UDim2.new(-0.5, 0, 0.851, 0),
+			config = ReactSpring.config.gentle,
+		}
+	end)
 
-    local styles, api = ReactSpring.useSpring(function()
-        return {
-            position = UDim2.new(-0.5, 0, 0.851, 0),
-            config = ReactSpring.config.gentle
-        }
-    end)
+	local musicNoteRotation, setMusicNoteRotation = React.useState(0)
 
-    local musicNoteRotation, setMusicNoteRotation = React.useState(0)
+	local musicNoteStyle, musicNoteApi = ReactSpring.useSpring(function()
+		return {
+			size = UDim2.new(0.312, 0, 0.788, 0),
+			config = {
+				damping = 0.8,
+				frequency = 0.1,
+			},
+		}
+	end)
 
-    local musicNoteStyle, musicNoteApi = ReactSpring.useSpring(function()
-        return {
-            size = UDim2.new(0.312, 0, 0.788, 0),
-            config = {
-                damping = 0.8,
-                frequency = 0.1
-            }
-        }
-    end)
+	React.useEffect(function()
+		local playMusicThread = task.spawn(function()
+			while true do
+				local usedSongs = {}
 
-    React.useEffect(function()
-        local playMusicThread = task.spawn(function()
-            while true do
-                
-                local usedSongs = {}
+				if #usedSongs == #ReplicatedStorage.Assets.Sounds.AmbientMusic:GetChildren() then
+					usedSongs = {}
+				end
 
-                if #usedSongs == #ReplicatedStorage.Assets.Sounds.AmbientMusic:GetChildren() then
-                    usedSongs = {}
-                end
+				local selectedSong
 
-                local selectedSong
+				while selectedSong == nil do
+					local randomSong = ReplicatedStorage.Assets.Sounds.AmbientMusic:GetChildren()[math.random(
+						1,
+						#ReplicatedStorage.Assets.Sounds.AmbientMusic:GetChildren()
+					)]
 
-                while selectedSong == nil do
-                    local randomSong = ReplicatedStorage.Assets.Sounds.AmbientMusic:GetChildren()[math.random(1, #ReplicatedStorage.Assets.Sounds.AmbientMusic:GetChildren())]
+					if table.find(usedSongs, randomSong) then
+						continue
+					end
 
-                    if table.find(usedSongs, randomSong) then
-                        continue
-                    end
+					selectedSong = randomSong
+					table.insert(usedSongs, selectedSong)
+				end
 
-                    selectedSong = randomSong
-                    table.insert(usedSongs, selectedSong)
-                end
+				setSongInfo({
+					AlbumName = selectedSong:GetAttribute("AlbumName"),
+					SongName = selectedSong:GetAttribute("SongName"),
+				})
 
-                setSongInfo({
-                    AlbumName = selectedSong:GetAttribute("AlbumName"),
-                    SongName = selectedSong:GetAttribute("SongName")
-                })
+				selectedSong:Play()
 
-                selectedSong:Play()
+				api.start({
+					position = UDim2.new(0.124, 0, 0.851, 0),
+				})
 
-                api.start({
-                    position = UDim2.new(0.124, 0, 0.851, 0)
-                })
+				task.wait(3)
 
-                task.wait(3)
+				api.start({
+					position = UDim2.new(-0.5, 0, 0.851, 0),
+				})
 
-                api.start({
-                    position = UDim2.new(-0.5, 0, 0.851, 0)
-                })
+				selectedSong.Ended:Wait()
+			end
+		end)
 
-                selectedSong.Ended:Wait()
-            end
-        end)
+		local spinThread = task.spawn(function()
+			while true do
+				task.wait()
+				setMusicNoteRotation(function(prev)
+					return prev + 1
+				end)
+			end
+		end)
 
-        local spinThread = task.spawn(function()
-            while true do
-                task.wait()
-                setMusicNoteRotation(function(prev)
-                    return prev + 1
-                end)
-            end
-        end)
+		local bopThread = task.spawn(function()
+			while true do
+				task.wait(1)
 
-        local bopThread = task.spawn(function()
-            while true do
-                task.wait(1)
-                
-                musicNoteApi.start({
-                    size = UDim2.new(0.312 * 1.5, 0, 0.788 * 1.5, 0)
-                })
+				musicNoteApi.start({
+					size = UDim2.new(0.312 * 1.5, 0, 0.788 * 1.5, 0),
+				})
 
-                task.wait(0.3)
+				task.wait(0.3)
 
-                musicNoteApi.start({
-                    size = UDim2.new(0.3125, 0, 0.788, 0)
-                })
-            end
-        end)
+				musicNoteApi.start({
+					size = UDim2.new(0.3125, 0, 0.788, 0),
+				})
+			end
+		end)
 
-        return function()
-            task.cancel(playMusicThread)
-            task.cancel(spinThread)
-            task.cancel(bopThread)
-        end
-    end, {})
-    
-    return e(MusicPlayerTemplate, {
-        Main = {
-            Visible = props.visible
-        },
+		return function()
+			task.cancel(playMusicThread)
+			task.cancel(spinThread)
+			task.cancel(bopThread)
+		end
+	end, {})
 
-        AlbumName = {
-            Text = songInfo.AlbumName
-        },
+	return e(MusicPlayerTemplate, {
+		Main = {
+			Visible = props.visible,
+		},
 
-        SongName = {
-            Text = songInfo.SongName
-        },
+		AlbumName = {
+			Text = songInfo.AlbumName,
+		},
 
-        Holder = {
-            Position = styles.position
-        },
+		SongName = {
+			Text = songInfo.SongName,
+		},
 
-        MusicNote = {
-            Rotation = musicNoteRotation,
-            Size = musicNoteStyle.size
-        }
-    })
+		Holder = {
+			Position = styles.position,
+		},
+
+		MusicNote = {
+			Rotation = musicNoteRotation,
+			Size = musicNoteStyle.size,
+		},
+	})
 end
-
-
-

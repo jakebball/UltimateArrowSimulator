@@ -9,8 +9,10 @@ function NetworkUtils.ConnectPromiseRemoteEvent(systems, eventName, func)
 end
 
 function NetworkUtils.DisconnectRemoteEvent(eventName)
-	eventConnections[eventName]:Disconnect()
-	eventConnections[eventName] = nil
+	if eventConnections[eventName] then
+		eventConnections[eventName]:Disconnect()
+		eventConnections[eventName] = nil
+	end
 end
 
 function NetworkUtils.ConnectPromiseRemoteFunction(systems, eventName, func)

@@ -3,6 +3,8 @@ local Bows = {}
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local AttributeUtils = require(ReplicatedStorage.Shared.Utils.AttributeUtils)
+
 function Bows.ToggleBowEquip(player, bowId)
 	local bows = HttpService:JSONDecode(player:GetAttribute("bows"))
 
@@ -11,22 +13,22 @@ function Bows.ToggleBowEquip(player, bowId)
 		return
 	end
 
-	local equippedItems = HttpService:JSONDecode(player:GetAttribute("equippedItems"))
+	local equippedItems = AttributeUtils.GetAttribute(player, "equippedItems", {})
 
 	if equippedItems.playerBowSlot == bowId then
 		equippedItems.playerBowSlot = nil
-		player:SetAttribute("equippedItems", HttpService:JSONEncode(equippedItems))
+		AttributeUtils.SetAttribute(player, "equippedItems", equippedItems)
 		return
 	end
 
 	equippedItems.playerBowSlot = bowId
 
-	player:SetAttribute("equippedItems", HttpService:JSONEncode(equippedItems))
+	AttributeUtils.SetAttribute(player, "equippedItems", equippedItems)
 end
 
 function Bows.DestroyBows(player, destroyData)
-	local bows = HttpService:JSONDecode(player:GetAttribute("bows"))
-	local equippedItems = HttpService:JSONDecode(player:GetAttribute("equippedItems"))
+	local bows = AttributeUtils.GetAttribute(player, "bows", {})
+	local equippedItems = AttributeUtils.GetAttribute(player, "equippedItems", {})
 
 	for _, v in destroyData do
 		local bowId = v.id
@@ -47,12 +49,12 @@ function Bows.DestroyBows(player, destroyData)
 
 		if newAmount == 0 and equippedItems.playerBowSlot == bowId then
 			equippedItems.playerBowSlot = nil
-			player:SetAttribute("equippedItems", HttpService:JSONEncode(equippedItems))
+			AttributeUtils.SetAttribute(player, "equippedItems", equippedItems)
 		end
 	end
 
-	player:SetAttribute("equippedItems", HttpService:JSONEncode(equippedItems))
-	player:SetAttribute("bows", HttpService:JSONEncode(bows))
+	AttributeUtils.SetAttribute(player, "equippedItems", equippedItems)
+	AttributeUtils.SetAttribute(player, "bows", bows)
 end
 
 function Bows.Start()

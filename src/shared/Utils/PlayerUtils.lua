@@ -8,13 +8,13 @@ function PlayerUtils.GetPlayerFromHumanoidRootPart(part)
 	end
 end
 
-function PlayerUtils.getHumanoidFromPlayer(player)
+function PlayerUtils.GetHumanoidFromPlayer(player)
 	if player.Character ~= nil and player.Character:FindFirstChild("Humanoid") ~= nil then
 		return player.Character.Humanoid
 	end
 end
 
-function PlayerUtils.togglePlayersVisible(toggle, excludeTable)
+function PlayerUtils.TogglePlayersVisible(toggle, excludeTable)
 	excludeTable = excludeTable or {}
 
 	if toggle then

@@ -30,7 +30,7 @@ function NumberUtils.Abbreviate(number)
 		})[math.floor((#s - 1) / 3) + 1]
 end
 
-function NumberUtils.getWeightedRandomItem(items)
+function NumberUtils.GetWeightedRandomItem(items)
 	local totalWeight = 0
 
 	for _, item in items do
@@ -49,7 +49,7 @@ function NumberUtils.getWeightedRandomItem(items)
 	end
 end
 
-function NumberUtils.getWeightedProbabilities(items)
+function NumberUtils.GetWeightedProbabilities(items)
 	local totalWeight = 0
 
 	for _, item in items do
