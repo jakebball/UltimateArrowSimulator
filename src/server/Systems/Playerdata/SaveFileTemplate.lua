@@ -7,9 +7,7 @@ return {
 	},
 	unlockedRanges = { "olreliable" },
 	simulationTokens = {
-		basic = {
-			["50Grade"] = 0,
-		},
+		basic50Grade = 120,
 	},
 	simulationDust = 0,
 	equippedSpecial = "rapidFire",

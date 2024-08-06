@@ -11,30 +11,16 @@ local ItemTemplate = RoactTemplate.fromInstance(RoactCompat, ReplicatedStorage.A
 
 local ModelRenderer = require(game.StarterPlayer.StarterPlayerScripts.Client.Gui.Components.ModelRenderer)
 
-local ItemInfo = require(ReplicatedStorage.Shared.ItemInfo)
+local TokenInfo = require(ReplicatedStorage.Shared.TokenInfo)
 local ConfigStyles = require(ReplicatedStorage.Shared.ConfigStyles)
 local RarityInfo = require(ReplicatedStorage.Shared.RarityInfo)
 
 local e = React.createElement
 
 return function(props)
-	local instance
+	local instance = ReplicatedStorage.Assets.SimulationTokens[props.tokenId]
 
-	if props.itemType == "Bows" then
-		instance = ReplicatedStorage.Assets.Bows[props.itemId]
-	end
-
-	local rarity
-
-	if props.itemId then
-		rarity = ItemInfo[props.itemId].rarity
-	end
-
-	local sellStyles = ReactSpring.useSpring({
-		size = if props.isBeingSold then UDim2.new(0.8, 0, 0.8, 0) else UDim2.new(0, 0, 0, 0),
-		rotation = if props.isBeingSold then 0 else -180,
-		config = ConfigStyles.defaultButton,
-	})
+	local rarity = TokenInfo[props.tokenId].rarity
 
 	return e(ItemTemplate, {
 		UIStroke = {
@@ -61,15 +47,15 @@ return function(props)
 			},
 
 			LayoutOrder = props.layoutOrder,
-		},
-
-		Sell = {
-			Size = sellStyles.size,
-			Rotation = sellStyles.rotation,
+			ZIndex = 10,
 		},
 
 		Count = {
 			Text = "x" .. props.amount,
+		},
+
+		Sell = {
+			Visible = false,
 		},
 	})
 end

@@ -16,14 +16,14 @@ local AnimatedButton = require(game.StarterPlayer.StarterPlayerScripts.Client.Gu
 local ConfigStyles = require(ReplicatedStorage.Shared.ConfigStyles)
 local ButtonStyles = require(ReplicatedStorage.Shared.ButtonStyles)
 
+local TokenList = require(script.TokenList)
+
 local SORTING_MODES = {
 	"Best",
 	"Worst",
 }
 
 local e = React.createElement
-
-local TOKEN_STACK_SIZE = 99
 
 return function(props)
 	local sortMode, setSortMode = React.useState(1)
@@ -87,6 +87,11 @@ return function(props)
 					activated = function()
 						props.setMenuState("gameplay")
 					end,
+				}),
+
+				TokenList = e(TokenList, {
+					sortMode = sortMode,
+					playerdata = props.playerdata,
 				}),
 			},
 		},

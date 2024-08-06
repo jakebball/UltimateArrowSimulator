@@ -18,7 +18,7 @@ local CameraUtils = require(ReplicatedStorage.Shared.Utils.CameraUtils)
 local NetworkUtils = require(ReplicatedStorage.Shared.Utils.NetworkUtils)
 local AttributeUtils = require(ReplicatedStorage.Shared.Utils.AttributeUtils)
 local RarityInfo = require(ReplicatedStorage.Shared.RarityInfo)
-local GradeInfo = require(ReplicatedStorage.Shared.GradeInfo)
+local TokenInfo = require(ReplicatedStorage.Shared.TokenInfo)
 
 local AnimatedButton = require(script.Parent.Parent.Components.AnimatedButton)
 local ModelRenderer = require(game.StarterPlayer.StarterPlayerScripts.Client.Gui.Components.ModelRenderer)

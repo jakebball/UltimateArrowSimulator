@@ -82,19 +82,11 @@ return function(props)
 
 			local keyIndex = 1
 
-			local bowIndex = {}
-
 			while remainingBows > 0 do
 				local stackSize = math.min(remainingBows, BOW_STACK_SIZE)
 				remainingBows = remainingBows - stackSize
 
 				keyIndex += 1
-
-				if bowIndex[bowId] == nil then
-					bowIndex[bowId] = 1
-				else
-					bowIndex[bowId] += 1
-				end
 
 				local function element(amount, keyIndex)
 					local layoutOrder = 0
@@ -107,7 +99,7 @@ return function(props)
 
 					return e(Item, {
 						itemType = "Bows",
-						bowId = bowId,
+						itemId = bowId,
 						amount = amount,
 						isBeingSold = table.find(destroyList, keyIndex) ~= nil,
 						layoutOrder = layoutOrder,

@@ -127,7 +127,7 @@ function ShootingRange.EndShootingRange(player)
 	local simulationTokens = AttributeUtils.GetAttribute(player, "simulationTokens")
 
 	if simulationTokens then
-		simulationTokens[selectedRarity][selectedGrade] += 1
+		simulationTokens[selectedRarity .. selectedGrade] += 1
 
 		AttributeUtils.SetAttribute(player, "simulationTokens", simulationTokens)
 
